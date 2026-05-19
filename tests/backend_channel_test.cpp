@@ -54,6 +54,16 @@ int main() {
   channel.dispatchReplyForTest(redis_proxy::MakeBufferChain(&pool, "+PONG\r\n"));
   RP_REQUIRE(b.replies.size() == 2);
 
+  FakeSink c;
+  channel.submitForTest(
+      &c, redis_proxy::MakeBufferChain(&pool, "*2\r\n$3\r\nGET\r\n$1\r\nx\r\n"),
+      2, 3);
+  RP_REQUIRE(channel.pendingBatchCountForTest() == 1);
+  channel.dispatchReplyForTest(redis_proxy::MakeBufferChain(&pool, "$1\r\n1\r\n"));
+  RP_REQUIRE(channel.pendingBatchCountForTest() == 1);
+  channel.dispatchReplyForTest(redis_proxy::MakeBufferChain(&pool, "$1\r\n2\r\n"));
+  RP_REQUIRE(channel.pendingBatchCountForTest() == 0);
+
   std::cout << "backend_channel_test passed\n";
   return 0;
 }
