@@ -47,3 +47,17 @@ help:
 	@echo "  make status         - Show submodule status"
 	@echo "  make clean          - Deinitialize all submodules"
 	@echo "  make help           - Show this help message"
+
+.PHONY: configure build test bench
+
+configure:
+	cmake -S . -B build
+
+build: configure
+	cmake --build build -j
+
+test: build
+	cd build && ctest --output-on-failure
+
+bench: build
+	./bench/run_single_worker_qps.sh
