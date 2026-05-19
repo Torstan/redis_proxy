@@ -75,6 +75,22 @@ std::size_t BackendChannel::queuedCommandCount() const {
 
 bool BackendChannel::isHealthy() const { return healthy_; }
 
+Status BackendChannel::connectOnce() {
+  int fd = CreateTcpClientSocket();
+  if (fd < 0) {
+    return Status::IoError("socket failed");
+  }
+  socket_.reset(fd);
+  Status st = socket_.connectTo(endpoint_, config_.connect_timeout_ms);
+  if (!st.ok()) {
+    socket_.close();
+    healthy_ = false;
+    return st;
+  }
+  healthy_ = true;
+  return Status::Ok();
+}
+
 void BackendChannel::dispatchReply(BufferChain reply) {
   if (pending_queue_.empty()) {
     return;
@@ -145,6 +161,15 @@ void BackendChannel::start(const Config& config) {
 void BackendChannel::writerLoop() {
   co::co_enable_hook_sys();
   while (true) {
+    while (!healthy_) {
+      reconnecting_ = true;
+      Status st = connectOnce();
+      reconnecting_ = false;
+      if (st.ok()) {
+        break;
+      }
+      co::co_poll(nullptr, 0, reconnect_delay_ms_);
+    }
     if (write_queue_.empty()) {
       co::co_poll(nullptr, 0, 1);
       continue;
@@ -162,6 +187,9 @@ void BackendChannel::writerLoop() {
 void BackendChannel::readerLoop() {
   co::co_enable_hook_sys();
   while (true) {
+    while (!healthy_) {
+      co::co_poll(nullptr, 0, reconnect_delay_ms_);
+    }
     Status st = socket_.readSome(&redis_in_, config_.read_timeout_ms);
     if (!st.ok()) {
       failAll(st);

@@ -80,9 +80,12 @@ private:
   std::deque<RequestBatch> write_queue_;
   std::deque<PendingBatch> pending_queue_;
   bool healthy_ = false;
+  bool reconnecting_ = false;
+  int reconnect_delay_ms_ = 100;
   std::size_t queued_commands_ = 0;
   Config config_;
 
+  Status connectOnce();
   void writerLoop();
   void readerLoop();
   void dispatchReply(BufferChain reply);
