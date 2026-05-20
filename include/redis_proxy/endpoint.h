@@ -27,6 +27,7 @@ private:
 };
 
 int SetNonBlocking(int fd);
+int SetTcpNoDelay(int fd);
 int CreateTcpListenSocket(const Endpoint& endpoint, int backlog);
 int CreateTcpClientSocket();
 

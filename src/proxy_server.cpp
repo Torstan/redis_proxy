@@ -46,6 +46,7 @@ void ProxyServer::acceptLoop() {
       continue;
     }
     SetNonBlocking(fd);
+    SetTcpNoDelay(fd);
     workers_[next_worker]->dispatchFd(fd);
     next_worker = (next_worker + 1) % workers_.size();
   }

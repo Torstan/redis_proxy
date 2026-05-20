@@ -5,6 +5,7 @@
 
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -47,6 +48,11 @@ int SetNonBlocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK | O_NDELAY);
 }
 
+int SetTcpNoDelay(int fd) {
+  int flag = 1;
+  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+}
+
 int CreateTcpListenSocket(const Endpoint& endpoint, int backlog) {
   int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd < 0) {
@@ -66,7 +72,7 @@ int CreateTcpListenSocket(const Endpoint& endpoint, int backlog) {
 
 int CreateTcpClientSocket() {
   int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (fd >= 0 && SetNonBlocking(fd) != 0) {
+  if (fd >= 0 && (SetNonBlocking(fd) != 0 || SetTcpNoDelay(fd) != 0)) {
     close(fd);
     return -1;
   }
