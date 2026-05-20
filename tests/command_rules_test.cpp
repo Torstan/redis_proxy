@@ -70,6 +70,24 @@ int main() {
   RP_REQUIRE(!rules.validate("BLPOP", 3).ok());  // Blocking - should be denied
   RP_REQUIRE(!rules.validate("BRPOP", 3).ok());  // Blocking - should be denied
 
+  // Hash commands
+  RP_REQUIRE(rules.validate("HSET", 4).ok());
+  RP_REQUIRE(rules.validate("HGET", 3).ok());
+  RP_REQUIRE(rules.validate("HMSET", 4).ok());
+  RP_REQUIRE(rules.validate("HMGET", 3).ok());
+  RP_REQUIRE(rules.validate("HGETALL", 2).ok());
+  RP_REQUIRE(rules.validate("HDEL", 3).ok());
+  RP_REQUIRE(rules.validate("HEXISTS", 3).ok());
+  RP_REQUIRE(rules.validate("HKEYS", 2).ok());
+  RP_REQUIRE(rules.validate("HVALS", 2).ok());
+  RP_REQUIRE(rules.validate("HLEN", 2).ok());
+  RP_REQUIRE(rules.validate("HINCRBY", 4).ok());
+  RP_REQUIRE(rules.validate("HINCRBYFLOAT", 4).ok());
+  RP_REQUIRE(rules.validate("HSETNX", 4).ok());
+  RP_REQUIRE(rules.validate("HSTRLEN", 3).ok());
+  RP_REQUIRE(rules.validate("HRANDFIELD", 2).ok());
+  RP_REQUIRE(!rules.validate("HSET", 3).ok());  // Too few args
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;

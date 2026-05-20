@@ -85,6 +85,23 @@ CommandRules CommandRules::Default() {
   rules.allow("LMOVE", 5, 5, false, true);
   rules.allow("RPOPLPUSH", 3, 3, false, true);
 
+  // Hash commands
+  rules.allow("HSET", 4, UINT16_MAX, false, true);
+  rules.allow("HGET", 3, 3, true, false);
+  rules.allow("HMSET", 4, UINT16_MAX, false, true);
+  rules.allow("HMGET", 3, UINT16_MAX, true, false);
+  rules.allow("HGETALL", 2, 2, true, false);
+  rules.allow("HDEL", 3, UINT16_MAX, false, true);
+  rules.allow("HEXISTS", 3, 3, true, false);
+  rules.allow("HKEYS", 2, 2, true, false);
+  rules.allow("HVALS", 2, 2, true, false);
+  rules.allow("HLEN", 2, 2, true, false);
+  rules.allow("HINCRBY", 4, 4, false, true);
+  rules.allow("HINCRBYFLOAT", 4, 4, false, true);
+  rules.allow("HSETNX", 4, 4, false, true);
+  rules.allow("HSTRLEN", 3, 3, true, false);
+  rules.allow("HRANDFIELD", 2, 3, true, false);
+
   rules.allow("DEL", 2, UINT16_MAX, false, true);
   rules.allow("EXISTS", 2, UINT16_MAX, true, false);
   rules.allow("EXPIRE", 3, 4, false, true);
