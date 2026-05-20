@@ -131,6 +131,30 @@ int main() {
   RP_REQUIRE(rules.validate("UNLINK", 2).ok());
   RP_REQUIRE(rules.validate("TOUCH", 2).ok());
 
+  // Verify blocking commands are denied
+  RP_REQUIRE(!rules.validate("BLPOP", 3).ok());
+  RP_REQUIRE(!rules.validate("BRPOP", 3).ok());
+  RP_REQUIRE(!rules.validate("BLMOVE", 6).ok());
+  RP_REQUIRE(!rules.validate("BLMPOP", 4).ok());
+  RP_REQUIRE(!rules.validate("BZPOPMIN", 3).ok());
+  RP_REQUIRE(!rules.validate("BZPOPMAX", 3).ok());
+  RP_REQUIRE(!rules.validate("BZMPOP", 4).ok());
+  RP_REQUIRE(!rules.validate("BRPOPLPUSH", 4).ok());
+
+  // Verify dangerous admin commands are denied
+  RP_REQUIRE(!rules.validate("FLUSHDB", 1).ok());
+  RP_REQUIRE(!rules.validate("FLUSHALL", 1).ok());
+  RP_REQUIRE(!rules.validate("KEYS", 2).ok());
+  RP_REQUIRE(!rules.validate("SCAN", 2).ok());
+  RP_REQUIRE(!rules.validate("BGREWRITEAOF", 1).ok());
+
+  // Verify pub/sub commands are denied
+  RP_REQUIRE(!rules.validate("PUBLISH", 3).ok());
+  RP_REQUIRE(!rules.validate("PUBSUB", 2).ok());
+  RP_REQUIRE(!rules.validate("SSUBSCRIBE", 2).ok());
+  RP_REQUIRE(!rules.validate("SUNSUBSCRIBE", 2).ok());
+  RP_REQUIRE(!rules.validate("SPUBLISH", 3).ok());
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;

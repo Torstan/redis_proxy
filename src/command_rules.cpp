@@ -148,16 +148,27 @@ CommandRules CommandRules::Default() {
   rules.allow("EXPIRE", 3, 4, false, true);
   rules.allow("TTL", 2, 2, true, false);
   const char* denied[] = {
+      // Auth/Session
       "AUTH",      "SELECT",      "CLIENT",    "HELLO",
+      // Transaction
       "MULTI",     "EXEC",        "DISCARD",   "WATCH",
-      "UNWATCH",   "SUBSCRIBE",   "PSUBSCRIBE", "SSUBSCRIBE",
-      "UNSUBSCRIBE", "PUNSUBSCRIBE", "SUNSUBSCRIBE", "BLPOP",
-      "BRPOP",     "BRPOPLPUSH",  "BZPOPMIN",  "BZPOPMAX",
-      "BLMOVE",    "XREAD",       "XREADGROUP", "DEBUG",
-      "MODULE",    "CONFIG",      "SHUTDOWN",  "SAVE",
-      "BGSAVE",    "SCRIPT",      "EVAL",      "EVALSHA",
-      "FUNCTION",  "ACL",         "MONITOR",   "SYNC",
-      "PSYNC"};
+      "UNWATCH",
+      // Pub/Sub
+      "SUBSCRIBE",   "PSUBSCRIBE",   "SSUBSCRIBE",
+      "UNSUBSCRIBE", "PUNSUBSCRIBE", "SUNSUBSCRIBE",
+      "PUBLISH",     "PUBSUB",       "SPUBLISH",
+      // Blocking operations
+      "BLPOP",     "BRPOP",       "BLMOVE",    "BLMPOP",
+      "BZPOPMIN",  "BZPOPMAX",    "BZMPOP",    "BRPOPLPUSH",
+      "XREAD",     "XREADGROUP",
+      // Admin/Dangerous
+      "DEBUG",     "MODULE",      "CONFIG",    "SHUTDOWN",
+      "SAVE",      "BGSAVE",      "BGREWRITEAOF",
+      "FLUSHDB",   "FLUSHALL",    "KEYS",      "SCAN",
+      // Script
+      "SCRIPT",    "EVAL",        "EVALSHA",   "FUNCTION",
+      // Cluster/Replication
+      "ACL",       "MONITOR",     "SYNC",      "PSYNC"};
   for (const char* command : denied) {
     rules.deny(command);
   }
