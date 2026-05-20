@@ -155,6 +155,26 @@ int main() {
   RP_REQUIRE(!rules.validate("SUNSUBSCRIBE", 2).ok());
   RP_REQUIRE(!rules.validate("SPUBLISH", 3).ok());
 
+  // Comprehensive coverage test - sample from each category
+  // String
+  RP_REQUIRE(rules.validate("SETEX", 4).ok());
+  RP_REQUIRE(rules.validate("GETRANGE", 4).ok());
+  // Set
+  RP_REQUIRE(rules.validate("SINTERSTORE", 3).ok());
+  RP_REQUIRE(rules.validate("SUNIONSTORE", 3).ok());
+  // List
+  RP_REQUIRE(rules.validate("LINSERT", 5).ok());
+  RP_REQUIRE(rules.validate("RPOPLPUSH", 3).ok());
+  // Hash
+  RP_REQUIRE(rules.validate("HINCRBYFLOAT", 4).ok());
+  RP_REQUIRE(rules.validate("HRANDFIELD", 2).ok());
+  // Sorted Set
+  RP_REQUIRE(rules.validate("ZRANGEBYSCORE", 4).ok());
+  RP_REQUIRE(rules.validate("ZINTERSTORE", 3).ok());
+  // Generic
+  RP_REQUIRE(rules.validate("RENAMENX", 3).ok());
+  RP_REQUIRE(rules.validate("TOUCH", 2).ok());
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;
