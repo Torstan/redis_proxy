@@ -25,6 +25,14 @@ int main() {
         redis_proxy::BufferSlice::retain(block, block->begin(), block->size()));
     block->release();
   }
+  {
+    redis_proxy::BufferBlock* block = pool.acquire();
+    std::memcpy(block->writePtr(), " world", 6);
+    block->advanceEnd(6);
+    output.append(
+        redis_proxy::BufferSlice::retain(block, block->begin(), block->size()));
+    block->release();
+  }
 
   bool done = false;
   co::Coroutine* writer = co::co_create([&]() {
@@ -37,7 +45,10 @@ int main() {
     co::co_enable_hook_sys();
     redis_proxy::CoSocket sock(fds[1]);
     RP_REQUIRE(sock.readSome(&input, 1000).ok());
-    RequireEqual(input.contiguousPrefixForTest(5), "hello");
+    while (input.readableBytes() < 11) {
+      RP_REQUIRE(sock.readSome(&input, 1000).ok());
+    }
+    RequireEqual(input.contiguousPrefixForTest(11), "hello world");
     sock.close();
     done = true;
   });

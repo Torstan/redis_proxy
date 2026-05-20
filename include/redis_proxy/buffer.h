@@ -69,6 +69,7 @@ private:
 class BufferChain {
 public:
   void append(BufferSlice slice);
+  void appendChain(BufferChain&& chain);
   std::size_t size() const;
   bool empty() const;
   const std::vector<BufferSlice>& slices() const;

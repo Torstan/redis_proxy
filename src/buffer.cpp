@@ -114,6 +114,14 @@ void BufferChain::append(BufferSlice slice) {
   slices_.push_back(std::move(slice));
 }
 
+void BufferChain::appendChain(BufferChain&& chain) {
+  for (auto& slice : chain.slices_) {
+    append(std::move(slice));
+  }
+  chain.slices_.clear();
+  chain.total_ = 0;
+}
+
 std::size_t BufferChain::size() const { return total_; }
 
 bool BufferChain::empty() const { return total_ == 0; }

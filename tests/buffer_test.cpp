@@ -37,6 +37,13 @@ int main() {
   RP_REQUIRE(input.readableBytes() == 2);
   RequireEqual(input.contiguousPrefixForTest(2), "ef");
 
+  redis_proxy::BufferChain left =
+      redis_proxy::MakeBufferChain(&pool, "+PONG\r\n");
+  redis_proxy::BufferChain right = redis_proxy::MakeBufferChain(&pool, ":1\r\n");
+  left.appendChain(std::move(right));
+  RequireEqual(left.toStringForTest(), "+PONG\r\n:1\r\n");
+  RP_REQUIRE(right.empty());
+
   std::cout << "buffer_test passed\n";
   return 0;
 }

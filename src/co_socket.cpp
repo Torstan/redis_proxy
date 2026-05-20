@@ -7,6 +7,7 @@
 
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 namespace redis_proxy {
@@ -93,27 +94,57 @@ Status CoSocket::readSome(IoBuffer* out, int timeout_ms) {
 }
 
 Status CoSocket::writeAll(const BufferChain& chain, int timeout_ms) {
-  for (const BufferSlice& slice : chain.slices()) {
-    const char* data = slice.data();
-    std::size_t left = slice.size();
-    while (left > 0) {
-      const ssize_t n = ::write(fd_, data, left);
-      if (n > 0) {
-        data += n;
-        left -= static_cast<std::size_t>(n);
+  const auto& slices = chain.slices();
+  std::size_t index = 0;
+  std::size_t offset = 0;
+
+  while (index < slices.size()) {
+    iovec iov[64];
+    int iovcnt = 0;
+    for (std::size_t i = index; i < slices.size() && iovcnt < 64; ++i) {
+      const BufferSlice& slice = slices[i];
+      const std::size_t slice_offset = (i == index) ? offset : 0;
+      if (slice.size() <= slice_offset) {
         continue;
       }
-      if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-        pollfd pfd{fd_, POLLOUT | POLLERR | POLLHUP, 0};
-        const int ret = co::co_poll(&pfd, 1, timeout_ms);
-        if (ret <= 0) {
-          return Status::IoError("write timeout");
-        }
-        continue;
-      }
-      return Status::IoError(n == 0 ? "zero write" : std::strerror(errno));
+      iov[iovcnt].iov_base = const_cast<char*>(slice.data() + slice_offset);
+      iov[iovcnt].iov_len = slice.size() - slice_offset;
+      ++iovcnt;
     }
+
+    if (iovcnt == 0) {
+      return Status::Ok();
+    }
+
+    const ssize_t n = ::writev(fd_, iov, iovcnt);
+    if (n > 0) {
+      std::size_t written = static_cast<std::size_t>(n);
+      while (written > 0 && index < slices.size()) {
+        const std::size_t available = slices[index].size() - offset;
+        if (written < available) {
+          offset += written;
+          written = 0;
+        } else {
+          written -= available;
+          ++index;
+          offset = 0;
+        }
+      }
+      continue;
+    }
+
+    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      pollfd pfd{fd_, POLLOUT | POLLERR | POLLHUP, 0};
+      const int ret = co::co_poll(&pfd, 1, timeout_ms);
+      if (ret <= 0) {
+        return Status::IoError("write timeout");
+      }
+      continue;
+    }
+
+    return Status::IoError(n == 0 ? "zero write" : std::strerror(errno));
   }
+
   return Status::Ok();
 }
 

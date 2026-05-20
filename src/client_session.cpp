@@ -106,6 +106,13 @@ void ClientSession::writerLoop() {
     }
     BufferChain reply = std::move(client_out_.front());
     client_out_.pop_front();
+    std::size_t coalesced = 1;
+    while (coalesced < config_.max_pipeline_commands_per_read &&
+           !client_out_.empty()) {
+      reply.appendChain(std::move(client_out_.front()));
+      client_out_.pop_front();
+      ++coalesced;
+    }
     Status st = socket_.writeAll(reply, config_.write_timeout_ms);
     if (!st.ok()) {
       closed_ = true;
