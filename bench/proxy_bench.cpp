@@ -47,6 +47,16 @@ int Connect(int port) {
     return -1;
   }
 
+  // Enable SO_REUSEADDR to avoid "Address already in use" errors
+  int reuse = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
+  // Set SO_LINGER to force immediate close without TIME_WAIT
+  linger linger_opt{};
+  linger_opt.l_onoff = 1;
+  linger_opt.l_linger = 0;
+  setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger_opt, sizeof(linger_opt));
+
   // Set non-blocking mode for connect timeout
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
