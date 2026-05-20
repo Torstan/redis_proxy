@@ -79,17 +79,17 @@ for clients in ${BENCH_CLIENTS:-16 64 128}; do
     for command in ${BENCH_COMMANDS:-PING GET SET}; do
       # Run proxy benchmark with retry logic
       proxy_qps=0
-      for attempt in 1 2; do
+      for attempt in 1 2 3; do
         proxy_json=$("${build_dir}/proxy_bench" --port "${proxy_port}" --clients "${clients}" --pipeline "${pipeline}" --seconds "${seconds}" --command "${command}" 2>&1)
         proxy_qps=$(echo "${proxy_json}" | sed -n 's/.*"qps":\([0-9.]*\).*/\1/p')
 
-        # If QPS is 0 or empty, retry after a delay
-        if [[ "$proxy_qps" == "0" ]] || [[ -z "$proxy_qps" ]]; then
-          if [[ $attempt -eq 1 ]]; then
-            echo "Warning: proxy test failed (clients=${clients}, pipeline=${pipeline}, command=${command}), retrying..."
-            sleep 2
+        # Check if QPS is valid (not 0, not empty, and reasonable)
+        if [[ "$proxy_qps" == "0" ]] || [[ -z "$proxy_qps" ]] || (( $(echo "$proxy_qps < 100" | bc -l 2>/dev/null || echo 0) )); then
+          if [[ $attempt -lt 3 ]]; then
+            echo "Warning: proxy test failed or abnormal (clients=${clients}, pipeline=${pipeline}, command=${command}, qps=${proxy_qps}), retrying (attempt $attempt/3)..."
+            sleep 3
           else
-            echo "Error: proxy test failed after retry"
+            echo "Error: proxy test failed after 3 attempts"
             proxy_qps=0
           fi
         else
@@ -97,18 +97,34 @@ for clients in ${BENCH_CLIENTS:-16 64 128}; do
         fi
       done
 
-      # Delay between proxy and direct tests
-      sleep 1
+      # Longer delay between proxy and direct tests
+      sleep 2
 
-      # Run direct benchmark
-      direct_json=$("${build_dir}/proxy_bench" --port "${redis_port}" --clients "${clients}" --pipeline "${pipeline}" --seconds "${seconds}" --command "${command}")
-      direct_qps=$(echo "${direct_json}" | sed -n 's/.*"qps":\([0-9.]*\).*/\1/p')
+      # Run direct benchmark with retry logic
+      direct_qps=0
+      for attempt in 1 2 3; do
+        direct_json=$("${build_dir}/proxy_bench" --port "${redis_port}" --clients "${clients}" --pipeline "${pipeline}" --seconds "${seconds}" --command "${command}" 2>&1)
+        direct_qps=$(echo "${direct_json}" | sed -n 's/.*"qps":\([0-9.]*\).*/\1/p')
+
+        # Check if QPS is valid
+        if [[ "$direct_qps" == "0" ]] || [[ -z "$direct_qps" ]] || (( $(echo "$direct_qps < 100" | bc -l 2>/dev/null || echo 0) )); then
+          if [[ $attempt -lt 3 ]]; then
+            echo "Warning: direct test failed or abnormal (clients=${clients}, pipeline=${pipeline}, command=${command}, qps=${direct_qps}), retrying (attempt $attempt/3)..."
+            sleep 3
+          else
+            echo "Error: direct test failed after 3 attempts"
+            direct_qps=0
+          fi
+        else
+          break
+        fi
+      done
 
       echo "proxy,${clients},${pipeline},${command},${proxy_qps}" | tee -a "${csv}"
       echo "direct,${clients},${pipeline},${command},${direct_qps}" | tee -a "${csv}"
 
-      # Delay before next test case
-      sleep 1
+      # Longer delay before next test case
+      sleep 2
     done
   done
 done
