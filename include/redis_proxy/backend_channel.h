@@ -66,8 +66,6 @@ public:
   std::size_t queuedCommandCount() const;
   bool isHealthy() const;
 
-  void submitForTest(ReplySink* owner, BufferChain bytes,
-                     uint32_t command_count, uint64_t sequence_base);
   void dispatchReplyForTest(BufferChain reply);
   std::size_t pendingBatchCountForTest() const;
   bool writerSignalPendingForTest() const;

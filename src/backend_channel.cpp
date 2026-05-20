@@ -56,12 +56,6 @@ bool BackendChannel::submit(ReplySink* owner, BufferChain bytes,
 
 void BackendChannel::detachOwner(ReplySink* owner) { detachOwnerInternal(owner); }
 
-void BackendChannel::submitForTest(ReplySink* owner, BufferChain bytes,
-                                   uint32_t command_count,
-                                   uint64_t sequence_base) {
-  submit(owner, std::move(bytes), command_count, sequence_base);
-}
-
 void BackendChannel::dispatchReplyForTest(BufferChain reply) {
   dispatchReply(std::move(reply));
 }

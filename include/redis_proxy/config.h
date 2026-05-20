@@ -8,15 +8,15 @@
 namespace redis_proxy {
 
 struct Config {
-  Endpoint listen = Endpoint("0.0.0.0", 6379);
+  Endpoint listen = Endpoint("127.0.0.1", 6379);
   Endpoint redis = Endpoint("127.0.0.1", 6380);
   int workers = 1;
   int backend_conns_per_worker = 1;
-  std::size_t max_request_bytes = 1024 * 1024;
-  std::size_t max_bulk_bytes = 1024 * 1024;
-  std::size_t max_array_elements = 1024;
-  std::size_t max_pipeline_commands_per_read = 256;
-  int connect_timeout_ms = 1000;
+  std::size_t max_request_bytes = 512* 1024 * 1024;
+  std::size_t max_bulk_bytes = 512* 1024 * 1024;
+  std::size_t max_array_elements = 1024 * 1024;
+  std::size_t max_pipeline_commands_per_read = 1024 * 1024;
+  int connect_timeout_ms = 5000;
   int read_timeout_ms = 30000;
   int write_timeout_ms = 30000;
 };

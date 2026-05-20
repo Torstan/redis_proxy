@@ -10,8 +10,11 @@
 #include <vector>
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <poll.h>
+#include <cerrno>
 
 namespace {
 
@@ -39,11 +42,51 @@ Options Parse(int argc, char** argv) {
 
 int Connect(int port) {
   int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (fd < 0) {
+    std::cerr << "socket() failed: " << strerror(errno) << "\n";
+    return -1;
+  }
+
+  // Set non-blocking mode for connect timeout
+  int flags = fcntl(fd, F_GETFL, 0);
+  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
   sockaddr_in addr{};
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
   inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-  if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) return -1;
+
+  int ret = connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+  if (ret < 0 && errno != EINPROGRESS) {
+    std::cerr << "connect() failed immediately: " << strerror(errno) << "\n";
+    close(fd);
+    return -1;
+  }
+
+  // Wait for connection with timeout (1 second)
+  if (errno == EINPROGRESS) {
+    pollfd pfd{};
+    pfd.fd = fd;
+    pfd.events = POLLOUT;
+    ret = poll(&pfd, 1, 1000);  // 1 second timeout
+    if (ret <= 0) {
+      std::cerr << "connect() timeout or poll error\n";
+      close(fd);
+      return -1;
+    }
+
+    // Check if connection succeeded
+    int error = 0;
+    socklen_t len = sizeof(error);
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0 || error != 0) {
+      std::cerr << "connect() failed: " << strerror(error ? error : errno) << "\n";
+      close(fd);
+      return -1;
+    }
+  }
+
+  // Restore blocking mode
+  fcntl(fd, F_SETFL, flags);
   return fd;
 }
 
