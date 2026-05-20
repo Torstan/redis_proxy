@@ -50,6 +50,26 @@ int main() {
   RP_REQUIRE(rules.validate("SDIFFSTORE", 3).ok());
   RP_REQUIRE(!rules.validate("SADD", 2).ok());  // Too few args
 
+  // List commands
+  RP_REQUIRE(rules.validate("LPUSH", 3).ok());
+  RP_REQUIRE(rules.validate("RPUSH", 3).ok());
+  RP_REQUIRE(rules.validate("LPUSHX", 3).ok());
+  RP_REQUIRE(rules.validate("RPUSHX", 3).ok());
+  RP_REQUIRE(rules.validate("LPOP", 2).ok());
+  RP_REQUIRE(rules.validate("RPOP", 2).ok());
+  RP_REQUIRE(rules.validate("LLEN", 2).ok());
+  RP_REQUIRE(rules.validate("LRANGE", 4).ok());
+  RP_REQUIRE(rules.validate("LINDEX", 3).ok());
+  RP_REQUIRE(rules.validate("LSET", 4).ok());
+  RP_REQUIRE(rules.validate("LINSERT", 5).ok());
+  RP_REQUIRE(rules.validate("LREM", 4).ok());
+  RP_REQUIRE(rules.validate("LTRIM", 4).ok());
+  RP_REQUIRE(rules.validate("LPOS", 3).ok());
+  RP_REQUIRE(rules.validate("LMOVE", 5).ok());
+  RP_REQUIRE(rules.validate("RPOPLPUSH", 3).ok());
+  RP_REQUIRE(!rules.validate("BLPOP", 3).ok());  // Blocking - should be denied
+  RP_REQUIRE(!rules.validate("BRPOP", 3).ok());  // Blocking - should be denied
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;

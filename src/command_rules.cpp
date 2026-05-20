@@ -67,6 +67,24 @@ CommandRules CommandRules::Default() {
   rules.allow("SDIFF", 2, UINT16_MAX, true, false);
   rules.allow("SDIFFSTORE", 3, UINT16_MAX, false, true);
 
+  // List commands
+  rules.allow("LPUSH", 3, UINT16_MAX, false, true);
+  rules.allow("RPUSH", 3, UINT16_MAX, false, true);
+  rules.allow("LPUSHX", 3, UINT16_MAX, false, true);
+  rules.allow("RPUSHX", 3, UINT16_MAX, false, true);
+  rules.allow("LPOP", 2, 3, false, true);
+  rules.allow("RPOP", 2, 3, false, true);
+  rules.allow("LLEN", 2, 2, true, false);
+  rules.allow("LRANGE", 4, 4, true, false);
+  rules.allow("LINDEX", 3, 3, true, false);
+  rules.allow("LSET", 4, 4, false, true);
+  rules.allow("LINSERT", 5, 5, false, true);
+  rules.allow("LREM", 4, 4, false, true);
+  rules.allow("LTRIM", 4, 4, false, true);
+  rules.allow("LPOS", 3, UINT16_MAX, true, false);
+  rules.allow("LMOVE", 5, 5, false, true);
+  rules.allow("RPOPLPUSH", 3, 3, false, true);
+
   rules.allow("DEL", 2, UINT16_MAX, false, true);
   rules.allow("EXISTS", 2, UINT16_MAX, true, false);
   rules.allow("EXPIRE", 3, 4, false, true);
