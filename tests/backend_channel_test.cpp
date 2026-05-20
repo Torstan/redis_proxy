@@ -28,6 +28,7 @@ int main() {
                         redis_proxy::MakeBufferChain(&pool,
                                                      "*1\r\n$4\r\nPING\r\n"),
                         1, 1);
+  RP_REQUIRE(channel.writerSignalPendingForTest());
   channel.submitForTest(&b,
                         redis_proxy::MakeBufferChain(&pool,
                                                      "*1\r\n$4\r\nPING\r\n"),
@@ -40,6 +41,7 @@ int main() {
   RP_REQUIRE(a.replies.size() == 1);
   RP_REQUIRE(b.replies.size() == 1);
   RP_REQUIRE(channel.pendingBatchCountForTest() == 0);
+  RP_REQUIRE(!channel.healthSignalPendingForTest());
 
   channel.submitForTest(&a,
                         redis_proxy::MakeBufferChain(&pool,

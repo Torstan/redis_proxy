@@ -8,6 +8,7 @@
 #include "redis_proxy/buffer.h"
 #include "redis_proxy/co_socket.h"
 #include "redis_proxy/config.h"
+#include "redis_proxy/coroutine_signal.h"
 #include "redis_proxy/resp_parser.h"
 #include "redis_proxy/status.h"
 
@@ -69,6 +70,8 @@ public:
                      uint32_t command_count, uint64_t sequence_base);
   void dispatchReplyForTest(BufferChain reply);
   std::size_t pendingBatchCountForTest() const;
+  bool writerSignalPendingForTest() const;
+  bool healthSignalPendingForTest() const;
 
 private:
   int id_;
@@ -79,6 +82,8 @@ private:
   IoBuffer redis_in_;
   std::deque<RequestBatch> write_queue_;
   std::deque<PendingBatch> pending_queue_;
+  CoroutineSignal writer_signal_;
+  CoroutineSignal health_signal_;
   bool healthy_ = false;
   bool reconnecting_ = false;
   int reconnect_delay_ms_ = 100;

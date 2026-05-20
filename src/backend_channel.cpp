@@ -50,6 +50,7 @@ bool BackendChannel::submit(ReplySink* owner, BufferChain bytes,
                             sequence_base);
   pending_queue_.emplace_back(owner, command_count, sequence_base);
   queued_commands_ += command_count;
+  writer_signal_.notify();
   return true;
 }
 
@@ -67,6 +68,14 @@ void BackendChannel::dispatchReplyForTest(BufferChain reply) {
 
 std::size_t BackendChannel::pendingBatchCountForTest() const {
   return pending_queue_.size();
+}
+
+bool BackendChannel::writerSignalPendingForTest() const {
+  return writer_signal_.pendingForTest();
+}
+
+bool BackendChannel::healthSignalPendingForTest() const {
+  return health_signal_.pendingForTest();
 }
 
 std::size_t BackendChannel::queuedCommandCount() const {
@@ -88,6 +97,7 @@ Status BackendChannel::connectOnce() {
     return st;
   }
   healthy_ = true;
+  health_signal_.notify();
   return Status::Ok();
 }
 
@@ -171,7 +181,7 @@ void BackendChannel::writerLoop() {
       co::co_poll(nullptr, 0, reconnect_delay_ms_);
     }
     if (write_queue_.empty()) {
-      co::co_poll(nullptr, 0, 1);
+      writer_signal_.wait();
       continue;
     }
     RequestBatch batch = std::move(write_queue_.front());
@@ -188,7 +198,7 @@ void BackendChannel::readerLoop() {
   co::co_enable_hook_sys();
   while (true) {
     while (!healthy_) {
-      co::co_poll(nullptr, 0, reconnect_delay_ms_);
+      health_signal_.wait();
     }
     Status st = socket_.readSome(&redis_in_, config_.read_timeout_ms);
     if (!st.ok()) {
