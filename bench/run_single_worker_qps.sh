@@ -6,6 +6,20 @@ redis_port="${REDIS_PORT:-6380}"
 proxy_port="${PROXY_PORT:-6390}"
 seconds="${SECONDS_PER_CASE:-10}"
 out_dir="${BENCH_OUT_DIR:-${build_dir}/bench-results}"
+
+if [[ "${USE_REDIS_BENCHMARK_SMOKE:-0}" == "1" ]]; then
+  smoke_env=(
+    BUILD_DIR="${build_dir}"
+    REDIS_BACKEND_PORT="${REDIS_PORT:-8888}"
+    BACKEND_CONNS="${BACKEND_CONNS:-1}"
+  )
+  if [[ -v PROXY_PORT ]]; then
+    smoke_env+=(PROXY_PORT="${PROXY_PORT}")
+  fi
+  env "${smoke_env[@]}" bench/run_redis_benchmark_smoke.sh
+  exit $?
+fi
+
 mkdir -p "${out_dir}"
 
 if ! command -v redis-server >/dev/null 2>&1; then
