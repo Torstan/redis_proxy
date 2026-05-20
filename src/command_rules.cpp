@@ -26,14 +26,32 @@ void CommandRules::deny(std::string_view command) {
 
 CommandRules CommandRules::Default() {
   CommandRules rules;
+
+  // String commands
   rules.allow("PING", 1, 2, true, false);
   rules.allow("GET", 2, 2, true, false);
-  rules.allow("MGET", 2, 1024, true, false);
-  rules.allow("SET", 3, 6, false, true);
-  rules.allow("DEL", 2, 1024, false, true);
-  rules.allow("EXISTS", 2, 1024, true, false);
+  rules.allow("MGET", 2, UINT16_MAX, true, false);
+  rules.allow("SET", 3, UINT16_MAX, false, true);
+  rules.allow("MSET", 3, UINT16_MAX, false, true);
+  rules.allow("MSETNX", 3, UINT16_MAX, false, true);
+  rules.allow("GETSET", 3, 3, false, true);
+  rules.allow("SETNX", 3, 3, false, true);
+  rules.allow("SETEX", 4, 4, false, true);
+  rules.allow("PSETEX", 4, 4, false, true);
+  rules.allow("GETEX", 2, UINT16_MAX, true, false);
+  rules.allow("GETDEL", 2, 2, false, true);
+  rules.allow("APPEND", 3, 3, false, true);
+  rules.allow("STRLEN", 2, 2, true, false);
+  rules.allow("GETRANGE", 4, 4, true, false);
+  rules.allow("SETRANGE", 4, 4, false, true);
   rules.allow("INCR", 2, 2, false, true);
   rules.allow("DECR", 2, 2, false, true);
+  rules.allow("INCRBY", 3, 3, false, true);
+  rules.allow("DECRBY", 3, 3, false, true);
+  rules.allow("INCRBYFLOAT", 3, 3, false, true);
+
+  rules.allow("DEL", 2, UINT16_MAX, false, true);
+  rules.allow("EXISTS", 2, UINT16_MAX, true, false);
   rules.allow("EXPIRE", 3, 4, false, true);
   rules.allow("TTL", 2, 2, true, false);
   const char* denied[] = {

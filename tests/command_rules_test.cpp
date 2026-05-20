@@ -14,6 +14,24 @@ int main() {
   RP_REQUIRE(!rules.validate("BLPOP", 3).ok());
   RP_REQUIRE(!rules.validate("UNKNOWN", 1).ok());
 
+  // String commands
+  RP_REQUIRE(rules.validate("MSET", 3).ok());
+  RP_REQUIRE(rules.validate("GETSET", 3).ok());
+  RP_REQUIRE(rules.validate("SETNX", 3).ok());
+  RP_REQUIRE(rules.validate("SETEX", 4).ok());
+  RP_REQUIRE(rules.validate("APPEND", 3).ok());
+  RP_REQUIRE(rules.validate("STRLEN", 2).ok());
+  RP_REQUIRE(rules.validate("GETRANGE", 4).ok());
+  RP_REQUIRE(rules.validate("INCRBY", 3).ok());
+  RP_REQUIRE(rules.validate("DECRBY", 3).ok());
+  RP_REQUIRE(rules.validate("INCRBYFLOAT", 3).ok());
+  RP_REQUIRE(rules.validate("MSETNX", 3).ok());
+  RP_REQUIRE(rules.validate("PSETEX", 4).ok());
+  RP_REQUIRE(rules.validate("GETEX", 2).ok());
+  RP_REQUIRE(rules.validate("GETDEL", 2).ok());
+  RP_REQUIRE(rules.validate("SETRANGE", 4).ok());
+  RP_REQUIRE(!rules.validate("MSET", 2).ok());  // Too few args
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;
