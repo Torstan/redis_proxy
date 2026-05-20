@@ -8,6 +8,7 @@
 #include "redis_proxy/backend_pool.h"
 #include "redis_proxy/co_socket.h"
 #include "redis_proxy/command_rules.h"
+#include "redis_proxy/coroutine_signal.h"
 #include "redis_proxy/resp_parser.h"
 
 namespace redis_proxy {
@@ -23,6 +24,7 @@ public:
   void onBackendFailure(const Status& status) override;
 
   std::size_t pendingRepliesForTest() const;
+  bool outputSignalPendingForTest() const;
 
 private:
   int id_;
@@ -34,6 +36,7 @@ private:
   RespParser parser_;
   IoBuffer client_in_;
   std::deque<BufferChain> client_out_;
+  CoroutineSignal output_signal_;
   BackendChannel* current_backend_ = nullptr;
   std::size_t pending_replies_ = 0;
   uint64_t next_sequence_ = 1;

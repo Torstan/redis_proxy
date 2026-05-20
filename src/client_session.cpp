@@ -32,6 +32,10 @@ std::size_t ClientSession::pendingRepliesForTest() const {
   return pending_replies_;
 }
 
+bool ClientSession::outputSignalPendingForTest() const {
+  return output_signal_.pendingForTest();
+}
+
 void ClientSession::submitFrame(RespFrame frame) {
   Status valid = rules_->validate(frame.command.name, frame.command.argc);
   if (!valid.ok()) {
@@ -51,6 +55,7 @@ void ClientSession::readerLoop() {
     Status st = socket_.readSome(&client_in_, config_.read_timeout_ms);
     if (!st.ok()) {
       closed_ = true;
+      output_signal_.notify();
       break;
     }
     std::size_t parsed = 0;
@@ -80,7 +85,7 @@ void ClientSession::writerLoop() {
   co::co_enable_hook_sys();
   while (!closed_ || !client_out_.empty()) {
     if (client_out_.empty()) {
-      co::co_poll(nullptr, 0, 1);
+      output_signal_.wait();
       continue;
     }
     BufferChain reply = std::move(client_out_.front());
@@ -103,6 +108,7 @@ void ClientSession::onBackendReply(BufferChain reply) {
   }
   if (!closed_) {
     client_out_.push_back(std::move(reply));
+    output_signal_.notify();
   }
 }
 
@@ -116,6 +122,7 @@ void ClientSession::enqueueErrorAndClose(std::string_view error) {
   redis::PackError(error, &encoded);
   client_out_.push_back(MakeBufferChain(pool_, encoded));
   closed_ = true;
+  output_signal_.notify();
 }
 
 }  // namespace redis_proxy
