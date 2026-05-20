@@ -32,6 +32,24 @@ int main() {
   RP_REQUIRE(rules.validate("SETRANGE", 4).ok());
   RP_REQUIRE(!rules.validate("MSET", 2).ok());  // Too few args
 
+  // Set commands
+  RP_REQUIRE(rules.validate("SADD", 3).ok());
+  RP_REQUIRE(rules.validate("SREM", 3).ok());
+  RP_REQUIRE(rules.validate("SMEMBERS", 2).ok());
+  RP_REQUIRE(rules.validate("SISMEMBER", 3).ok());
+  RP_REQUIRE(rules.validate("SCARD", 2).ok());
+  RP_REQUIRE(rules.validate("SINTER", 3).ok());
+  RP_REQUIRE(rules.validate("SUNION", 3).ok());
+  RP_REQUIRE(rules.validate("SDIFF", 3).ok());
+  RP_REQUIRE(rules.validate("SMISMEMBER", 3).ok());
+  RP_REQUIRE(rules.validate("SPOP", 2).ok());
+  RP_REQUIRE(rules.validate("SRANDMEMBER", 2).ok());
+  RP_REQUIRE(rules.validate("SMOVE", 4).ok());
+  RP_REQUIRE(rules.validate("SINTERSTORE", 3).ok());
+  RP_REQUIRE(rules.validate("SUNIONSTORE", 3).ok());
+  RP_REQUIRE(rules.validate("SDIFFSTORE", 3).ok());
+  RP_REQUIRE(!rules.validate("SADD", 2).ok());  // Too few args
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;

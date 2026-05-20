@@ -50,6 +50,23 @@ CommandRules CommandRules::Default() {
   rules.allow("DECRBY", 3, 3, false, true);
   rules.allow("INCRBYFLOAT", 3, 3, false, true);
 
+  // Set commands
+  rules.allow("SADD", 3, UINT16_MAX, false, true);
+  rules.allow("SREM", 3, UINT16_MAX, false, true);
+  rules.allow("SMEMBERS", 2, 2, true, false);
+  rules.allow("SISMEMBER", 3, 3, true, false);
+  rules.allow("SMISMEMBER", 3, UINT16_MAX, true, false);
+  rules.allow("SCARD", 2, 2, true, false);
+  rules.allow("SPOP", 2, 3, false, true);
+  rules.allow("SRANDMEMBER", 2, 3, true, false);
+  rules.allow("SMOVE", 4, 4, false, true);
+  rules.allow("SINTER", 2, UINT16_MAX, true, false);
+  rules.allow("SINTERSTORE", 3, UINT16_MAX, false, true);
+  rules.allow("SUNION", 2, UINT16_MAX, true, false);
+  rules.allow("SUNIONSTORE", 3, UINT16_MAX, false, true);
+  rules.allow("SDIFF", 2, UINT16_MAX, true, false);
+  rules.allow("SDIFFSTORE", 3, UINT16_MAX, false, true);
+
   rules.allow("DEL", 2, UINT16_MAX, false, true);
   rules.allow("EXISTS", 2, UINT16_MAX, true, false);
   rules.allow("EXPIRE", 3, 4, false, true);
