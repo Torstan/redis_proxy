@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "redis_proxy/client_session.h"
+#include "redis_proxy/fd_notifier.h"
 
 namespace redis_proxy {
 
@@ -29,6 +30,7 @@ private:
   std::mutex mutex_;
   std::deque<int> pending_fds_;
   std::atomic<bool> has_pending_fds_{false};
+  FdNotifier fd_notifier_;
   std::unique_ptr<BlockPool> pool_;
   std::unique_ptr<BackendPool> backend_pool_;
   std::vector<std::unique_ptr<ClientSession>> sessions_;

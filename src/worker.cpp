@@ -4,6 +4,7 @@
 #include "thread_worker.h"
 
 #include <memory>
+#include <poll.h>
 
 namespace redis_proxy {
 
@@ -27,9 +28,12 @@ void Worker::join() {
 int Worker::id() const { return id_; }
 
 void Worker::dispatchFd(int fd) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  pending_fds_.push_back(fd);
-  has_pending_fds_.store(true, std::memory_order_release);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    pending_fds_.push_back(fd);
+    has_pending_fds_.store(true, std::memory_order_release);
+  }
+  (void)fd_notifier_.notify();
 }
 
 void Worker::reapFds() {
@@ -60,7 +64,11 @@ void Worker::run() {
     co::co_enable_hook_sys();
     while (true) {
       reapFds();
-      co::co_poll(nullptr, 0, 1);
+      pollfd pfd{fd_notifier_.readFd(), POLLIN | POLLERR | POLLHUP, 0};
+      const int ret = co::co_poll(&pfd, 1, -1);
+      if (ret > 0) {
+        (void)fd_notifier_.drain();
+      }
     }
   });
   co::co_resume(reaper);
