@@ -133,6 +133,16 @@ CommandRules CommandRules::Default() {
   rules.allow("ZDIFFSTORE", 3, UINT16_MAX, false, true);
   rules.allow("ZRANDMEMBER", 2, 3, true, false);
 
+  // Generic commands (already have: PING, DEL, EXISTS, EXPIRE, TTL)
+  rules.allow("EXPIREAT", 3, 4, false, true);
+  rules.allow("PTTL", 2, 2, true, false);
+  rules.allow("PERSIST", 2, 2, false, true);
+  rules.allow("TYPE", 2, 2, true, false);
+  rules.allow("RENAME", 3, 3, false, true);
+  rules.allow("RENAMENX", 3, 3, false, true);
+  rules.allow("UNLINK", 2, UINT16_MAX, false, true);
+  rules.allow("TOUCH", 2, UINT16_MAX, false, true);
+
   rules.allow("DEL", 2, UINT16_MAX, false, true);
   rules.allow("EXISTS", 2, UINT16_MAX, true, false);
   rules.allow("EXPIRE", 3, 4, false, true);

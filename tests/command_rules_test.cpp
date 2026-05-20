@@ -121,6 +121,16 @@ int main() {
   RP_REQUIRE(!rules.validate("BZPOPMIN", 3).ok());  // Blocking - denied
   RP_REQUIRE(!rules.validate("BZPOPMAX", 3).ok());  // Blocking - denied
 
+  // Generic commands
+  RP_REQUIRE(rules.validate("EXPIREAT", 3).ok());
+  RP_REQUIRE(rules.validate("PTTL", 2).ok());
+  RP_REQUIRE(rules.validate("PERSIST", 2).ok());
+  RP_REQUIRE(rules.validate("TYPE", 2).ok());
+  RP_REQUIRE(rules.validate("RENAME", 3).ok());
+  RP_REQUIRE(rules.validate("RENAMENX", 3).ok());
+  RP_REQUIRE(rules.validate("UNLINK", 2).ok());
+  RP_REQUIRE(rules.validate("TOUCH", 2).ok());
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;
