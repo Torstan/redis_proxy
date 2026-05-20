@@ -13,6 +13,23 @@ include(cmake/Jemalloc.cmake)
 
 add_subdirectory(thirdparty/libco EXCLUDE_FROM_ALL)
 
+if(REDIS_PROXY_BUILD_TESTS)
+  set(REDIS_PROXY_LIBCO_TEST_TARGETS
+    test_co_routine
+    test_co_async
+    test_co_poll
+    test_public_api)
+  foreach(libco_test ${REDIS_PROXY_LIBCO_TEST_TARGETS})
+    if(TARGET ${libco_test})
+      list(APPEND REDIS_PROXY_PRESENT_LIBCO_TEST_TARGETS ${libco_test})
+    endif()
+  endforeach()
+  if(REDIS_PROXY_PRESENT_LIBCO_TEST_TARGETS)
+    add_custom_target(redis_proxy_libco_tests ALL
+      DEPENDS ${REDIS_PROXY_PRESENT_LIBCO_TEST_TARGETS})
+  endif()
+endif()
+
 add_library(redis_resp INTERFACE)
 target_include_directories(redis_resp INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cpp_util/redis/include)
