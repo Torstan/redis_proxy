@@ -102,6 +102,37 @@ CommandRules CommandRules::Default() {
   rules.allow("HSTRLEN", 3, 3, true, false);
   rules.allow("HRANDFIELD", 2, 3, true, false);
 
+  // Sorted Set commands
+  rules.allow("ZADD", 4, UINT16_MAX, false, true);
+  rules.allow("ZREM", 3, UINT16_MAX, false, true);
+  rules.allow("ZSCORE", 3, 3, true, false);
+  rules.allow("ZMSCORE", 3, UINT16_MAX, true, false);
+  rules.allow("ZINCRBY", 4, 4, false, true);
+  rules.allow("ZCARD", 2, 2, true, false);
+  rules.allow("ZCOUNT", 4, 4, true, false);
+  rules.allow("ZLEXCOUNT", 4, 4, true, false);
+  rules.allow("ZRANGE", 4, UINT16_MAX, true, false);
+  rules.allow("ZREVRANGE", 4, UINT16_MAX, true, false);
+  rules.allow("ZRANGEBYSCORE", 4, UINT16_MAX, true, false);
+  rules.allow("ZREVRANGEBYSCORE", 4, UINT16_MAX, true, false);
+  rules.allow("ZRANGEBYLEX", 4, UINT16_MAX, true, false);
+  rules.allow("ZREVRANGEBYLEX", 4, UINT16_MAX, true, false);
+  rules.allow("ZRANGESTORE", 5, UINT16_MAX, false, true);
+  rules.allow("ZRANK", 3, 3, true, false);
+  rules.allow("ZREVRANK", 3, 3, true, false);
+  rules.allow("ZREMRANGEBYRANK", 4, 4, false, true);
+  rules.allow("ZREMRANGEBYSCORE", 4, 4, false, true);
+  rules.allow("ZREMRANGEBYLEX", 4, 4, false, true);
+  rules.allow("ZPOPMIN", 2, 3, false, true);
+  rules.allow("ZPOPMAX", 2, 3, false, true);
+  rules.allow("ZINTER", 3, UINT16_MAX, true, false);
+  rules.allow("ZINTERSTORE", 3, UINT16_MAX, false, true);
+  rules.allow("ZUNION", 3, UINT16_MAX, true, false);
+  rules.allow("ZUNIONSTORE", 3, UINT16_MAX, false, true);
+  rules.allow("ZDIFF", 3, UINT16_MAX, true, false);
+  rules.allow("ZDIFFSTORE", 3, UINT16_MAX, false, true);
+  rules.allow("ZRANDMEMBER", 2, 3, true, false);
+
   rules.allow("DEL", 2, UINT16_MAX, false, true);
   rules.allow("EXISTS", 2, UINT16_MAX, true, false);
   rules.allow("EXPIRE", 3, 4, false, true);

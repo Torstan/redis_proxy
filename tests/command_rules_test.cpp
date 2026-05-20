@@ -88,6 +88,39 @@ int main() {
   RP_REQUIRE(rules.validate("HRANDFIELD", 2).ok());
   RP_REQUIRE(!rules.validate("HSET", 3).ok());  // Too few args
 
+  // Sorted Set commands
+  RP_REQUIRE(rules.validate("ZADD", 4).ok());
+  RP_REQUIRE(rules.validate("ZREM", 3).ok());
+  RP_REQUIRE(rules.validate("ZSCORE", 3).ok());
+  RP_REQUIRE(rules.validate("ZMSCORE", 3).ok());
+  RP_REQUIRE(rules.validate("ZINCRBY", 4).ok());
+  RP_REQUIRE(rules.validate("ZCARD", 2).ok());
+  RP_REQUIRE(rules.validate("ZCOUNT", 4).ok());
+  RP_REQUIRE(rules.validate("ZLEXCOUNT", 4).ok());
+  RP_REQUIRE(rules.validate("ZRANGE", 4).ok());
+  RP_REQUIRE(rules.validate("ZREVRANGE", 4).ok());
+  RP_REQUIRE(rules.validate("ZRANGEBYSCORE", 4).ok());
+  RP_REQUIRE(rules.validate("ZREVRANGEBYSCORE", 4).ok());
+  RP_REQUIRE(rules.validate("ZRANGEBYLEX", 4).ok());
+  RP_REQUIRE(rules.validate("ZREVRANGEBYLEX", 4).ok());
+  RP_REQUIRE(rules.validate("ZRANGESTORE", 5).ok());
+  RP_REQUIRE(rules.validate("ZRANK", 3).ok());
+  RP_REQUIRE(rules.validate("ZREVRANK", 3).ok());
+  RP_REQUIRE(rules.validate("ZREMRANGEBYRANK", 4).ok());
+  RP_REQUIRE(rules.validate("ZREMRANGEBYSCORE", 4).ok());
+  RP_REQUIRE(rules.validate("ZREMRANGEBYLEX", 4).ok());
+  RP_REQUIRE(rules.validate("ZPOPMIN", 2).ok());
+  RP_REQUIRE(rules.validate("ZPOPMAX", 2).ok());
+  RP_REQUIRE(rules.validate("ZINTER", 3).ok());
+  RP_REQUIRE(rules.validate("ZINTERSTORE", 3).ok());
+  RP_REQUIRE(rules.validate("ZUNION", 3).ok());
+  RP_REQUIRE(rules.validate("ZUNIONSTORE", 3).ok());
+  RP_REQUIRE(rules.validate("ZDIFF", 3).ok());
+  RP_REQUIRE(rules.validate("ZDIFFSTORE", 3).ok());
+  RP_REQUIRE(rules.validate("ZRANDMEMBER", 2).ok());
+  RP_REQUIRE(!rules.validate("BZPOPMIN", 3).ok());  // Blocking - denied
+  RP_REQUIRE(!rules.validate("BZPOPMAX", 3).ok());  // Blocking - denied
+
   redis_proxy::CommandRule custom;
   custom.allowed = true;
   custom.min_argc = 1;
