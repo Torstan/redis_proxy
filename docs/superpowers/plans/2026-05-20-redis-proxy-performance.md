@@ -1594,3 +1594,11 @@ git commit -m "docs: record redis proxy performance verification"
 - Spec coverage: the plan addresses the measured low QPS, the libco event-driven wakeup pattern, the local backend on `127.0.0.1:8888`, explicit `redis-benchmark` testing, single-worker 100k QPS acceptance, subagent-friendly decomposition, and per-feature commits.
 - Placeholder scan: the plan contains concrete code, commands, expected results, and no omitted implementation steps.
 - Type consistency: `CoroutineSignal`, `FdNotifier`, `RespFrameInfo`, `peekFrame()`, `submitBatch()`, `appendChain()`, and all test accessors are introduced before use.
+
+## Verification Results
+
+- Correctness: `ctest --test-dir build --output-on-failure` passed on 2026-05-20: 15/15 tests passed.
+- Hot-path polling check: `rg -n "co_poll\\(nullptr, 0, 1\\)" src` returned no matches.
+- Backend: `redis-cli -p 8888 PING` returned `PONG`.
+- One-client smoke: explicit `PING`, `REQUESTS=5000 CLIENTS=1 PIPELINE=1 BACKEND_CONNS=1 MIN_DIRECT_QPS=1 MIN_PROXY_QPS=1 bench/run_redis_benchmark_smoke.sh` passed; direct Redis measured 5336.18 requests/sec and proxy measured 2686.73 requests/sec.
+- Target smoke: explicit `PING`, `REQUESTS=100000 CLIENTS=50 PIPELINE=16 BACKEND_CONNS=1 MIN_DIRECT_QPS=125000 MIN_PROXY_QPS=100000 bench/run_redis_benchmark_smoke.sh` passed; direct Redis measured 970873.81 requests/sec and proxy measured 262467.19 requests/sec.
