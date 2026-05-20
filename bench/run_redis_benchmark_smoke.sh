@@ -43,7 +43,7 @@ trap 'kill "${proxy_pid}" >/dev/null 2>&1 || true' EXIT
 sleep 0.5
 
 extract_qps() {
-  awk -F'[:, ]+' '/requests per second/ { print $2; exit }'
+  tr '\r' '\n' | awk '/requests per second/ { print $2; exit }'
 }
 
 direct_out="${out_dir}/direct-ping-c${clients}-p${pipeline}.txt"
