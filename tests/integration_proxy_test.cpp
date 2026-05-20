@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -68,6 +69,39 @@ std::string ReadUntil(int fd, const std::vector<std::string>& expected) {
   return out;
 }
 
+std::size_t CountOccurrences(std::string_view haystack,
+                             std::string_view needle) {
+  std::size_t count = 0;
+  std::size_t pos = 0;
+  while ((pos = haystack.find(needle, pos)) != std::string_view::npos) {
+    ++count;
+    pos += needle.size();
+  }
+  return count;
+}
+
+std::string ReadUntilOccurrences(int fd, std::string_view needle,
+                                 std::size_t expected_count) {
+  char buf[4096];
+  std::string out;
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(3);
+  while (std::chrono::steady_clock::now() < deadline &&
+         CountOccurrences(out, needle) < expected_count) {
+    pollfd pfd{fd, POLLIN | POLLERR | POLLHUP, 0};
+    const int ready = poll(&pfd, 1, 100);
+    if (ready <= 0) {
+      continue;
+    }
+    ssize_t n = read(fd, buf, sizeof(buf));
+    if (n <= 0) {
+      break;
+    }
+    out.append(buf, static_cast<std::size_t>(n));
+  }
+  return out;
+}
+
 }  // namespace
 
 int main() {
@@ -110,6 +144,18 @@ int main() {
     ok = reply.find("+OK\r\n") != std::string::npos &&
          reply.find(":2\r\n") != std::string::npos &&
          reply.find("$1\r\n2\r\n") != std::string::npos;
+  }
+  if (ok) {
+    std::string ping_req;
+    for (int i = 0; i < 128; ++i) {
+      redis::PackCommand({"PING"}, &ping_req);
+    }
+    ok = write(fd, ping_req.data(), ping_req.size()) ==
+         static_cast<ssize_t>(ping_req.size());
+    if (ok) {
+      reply = ReadUntilOccurrences(fd, "+PONG\r\n", 128);
+      ok = CountOccurrences(reply, "+PONG\r\n") == 128;
+    }
   }
 
   if (fd >= 0) {

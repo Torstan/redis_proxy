@@ -52,6 +52,53 @@ bool RespParser::extractCommand(const redis::RespValue& value,
   return true;
 }
 
+bool RespParser::extractCommandInfo(const redis::RespValue& value,
+                                    RespFrameInfo* out) const {
+  if (value.type != redis::RespType::kArray || value.element_count == 0 ||
+      value.elements == nullptr) {
+    return false;
+  }
+  for (std::size_t i = 0; i < value.element_count; ++i) {
+    if (value.elements[i].type != redis::RespType::kBulkString) {
+      return false;
+    }
+  }
+  out->argc = value.element_count;
+  const redis::RespValue& command = value.elements[0];
+  out->command_name.assign(command.text.data(), command.text.size());
+  return true;
+}
+
+ParseStatus RespParser::peekFrame(IoBuffer& input, std::size_t offset,
+                                  RespFrameInfo* out) {
+  const std::size_t available = input.readableBytes();
+  if (offset > available) {
+    return ParseStatus::kError;
+  }
+  if (offset == available) {
+    return ParseStatus::kNeedMore;
+  }
+  if (!input.ensureContiguousPrefix(available)) {
+    return ParseStatus::kNeedMore;
+  }
+  std::string_view view = input.contiguousPrefixForTest(available);
+  view.remove_prefix(offset);
+
+  redis::RespResult result =
+      redis::UnpackOne(view, scratch_.data(), scratch_.size(), limits_);
+  if (result.status != redis::RespStatus::kOk) {
+    return convert(result.status);
+  }
+
+  RespFrameInfo info;
+  if (!extractCommandInfo(*result.value, &info)) {
+    return ParseStatus::kError;
+  }
+  info.consumed = result.consumed;
+  *out = std::move(info);
+  return ParseStatus::kOk;
+}
+
 ParseStatus RespParser::nextFrame(IoBuffer& input, RespFrame* out) {
   const std::size_t available = input.readableBytes();
   if (available == 0) {

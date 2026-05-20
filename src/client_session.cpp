@@ -36,17 +36,22 @@ bool ClientSession::outputSignalPendingForTest() const {
   return output_signal_.pendingForTest();
 }
 
-void ClientSession::submitFrame(RespFrame frame) {
-  Status valid = rules_->validate(frame.command.name, frame.command.argc);
-  if (!valid.ok()) {
-    enqueueErrorAndClose(valid.message());
+void ClientSession::submitBatch(BufferChain bytes, uint32_t command_count) {
+  if (command_count == 0) {
     return;
   }
   const bool has_pending = pending_replies_ > 0;
-  pending_replies_ += 1;
+  const uint64_t sequence_base = next_sequence_;
+  pending_replies_ += command_count;
+  next_sequence_ += command_count;
   current_backend_ = backend_pool_->submit(
-      this, current_backend_, has_pending, std::move(frame.bytes), 1,
-      next_sequence_++);
+      this, current_backend_, has_pending, std::move(bytes), command_count,
+      sequence_base);
+}
+
+void ClientSession::submitBatchForTest(BufferChain bytes,
+                                       uint32_t command_count) {
+  submitBatch(std::move(bytes), command_count);
 }
 
 void ClientSession::readerLoop() {
@@ -59,9 +64,10 @@ void ClientSession::readerLoop() {
       break;
     }
     std::size_t parsed = 0;
+    std::size_t consumed = 0;
     while (parsed < config_.max_pipeline_commands_per_read) {
-      RespFrame frame;
-      ParseStatus ps = parser_.nextFrame(client_in_, &frame);
+      RespFrameInfo info;
+      ParseStatus ps = parser_.peekFrame(client_in_, consumed, &info);
       if (ps == ParseStatus::kNeedMore) {
         break;
       }
@@ -69,11 +75,21 @@ void ClientSession::readerLoop() {
         enqueueErrorAndClose("ERR proxy protocol error");
         break;
       }
-      submitFrame(std::move(frame));
-      ++parsed;
-      if (closed_) {
+      Status valid = rules_->validate(info.command_name, info.argc);
+      if (!valid.ok()) {
+        if (parsed > 0) {
+          submitBatch(client_in_.slicePrefix(consumed),
+                      static_cast<uint32_t>(parsed));
+        }
+        enqueueErrorAndClose(valid.message());
         break;
       }
+      consumed += info.consumed;
+      ++parsed;
+    }
+    if (!closed_ && parsed > 0) {
+      submitBatch(client_in_.slicePrefix(consumed),
+                  static_cast<uint32_t>(parsed));
     }
   }
   if (current_backend_ != nullptr) {

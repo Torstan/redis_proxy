@@ -48,4 +48,11 @@ BackendChannel* BackendPool::selectForSessionForTest(ReplySink* owner,
   return select(owner, has_pending, current);
 }
 
+BackendChannel* BackendPool::channelForTest(std::size_t index) {
+  if (index >= channels_.size()) {
+    return nullptr;
+  }
+  return channels_[index].get();
+}
+
 }  // namespace redis_proxy

@@ -25,6 +25,7 @@ public:
 
   std::size_t pendingRepliesForTest() const;
   bool outputSignalPendingForTest() const;
+  void submitBatchForTest(BufferChain bytes, uint32_t command_count);
 
 private:
   int id_;
@@ -45,7 +46,7 @@ private:
   void readerLoop();
   void writerLoop();
   void enqueueErrorAndClose(std::string_view error);
-  void submitFrame(RespFrame frame);
+  void submitBatch(BufferChain bytes, uint32_t command_count);
 };
 
 }  // namespace redis_proxy

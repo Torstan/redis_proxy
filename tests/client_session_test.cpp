@@ -4,6 +4,7 @@
 #include "test_common.h"
 
 #include <iostream>
+#include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -21,6 +22,16 @@ int main() {
 
   session.onBackendReply(redis_proxy::MakeBufferChain(&pool, "+PONG\r\n"));
   RP_REQUIRE(session.outputSignalPendingForTest());
+
+  const std::string two_pings =
+      "*1\r\n$4\r\nPING\r\n*1\r\n$4\r\nPING\r\n";
+  session.submitBatchForTest(redis_proxy::MakeBufferChain(&pool, two_pings),
+                             2);
+  RP_REQUIRE(session.pendingRepliesForTest() == 2);
+  redis_proxy::BackendChannel* channel = backend_pool.channelForTest(0);
+  RP_REQUIRE(channel != nullptr);
+  RP_REQUIRE(channel->pendingBatchCountForTest() == 1);
+  RP_REQUIRE(channel->queuedCommandCount() == 2);
 
   close(fds[1]);
   std::cout << "client_session_test passed\n";

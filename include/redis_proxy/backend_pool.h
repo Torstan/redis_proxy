@@ -18,6 +18,7 @@ public:
                          uint32_t command_count, uint64_t sequence_base);
   BackendChannel* selectForSessionForTest(ReplySink* owner, bool has_pending,
                                           BackendChannel* current);
+  BackendChannel* channelForTest(std::size_t index);
 
 private:
   BackendChannel* select(ReplySink* owner, bool has_pending,
