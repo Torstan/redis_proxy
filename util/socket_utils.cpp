@@ -1,5 +1,5 @@
 #include "util/socket_utils.h"
-#include "redis_proxy/endpoint.h"
+#include "util/endpoint.h"
 
 #include <fcntl.h>
 #include <netinet/tcp.h>

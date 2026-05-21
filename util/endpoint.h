@@ -26,9 +26,4 @@ private:
   uint16_t port_ = 0;
 };
 
-int SetNonBlocking(int fd);
-int SetTcpNoDelay(int fd);
-int CreateTcpListenSocket(const Endpoint& endpoint, int backlog);
-int CreateTcpClientSocket();
-
 }  // namespace redis_proxy

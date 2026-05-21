@@ -1,6 +1,7 @@
 #include "redis_proxy/backend_channel.h"
 
 #include "co_routine.h"
+#include "util/socket_utils.h"
 
 #include <utility>
 
