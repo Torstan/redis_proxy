@@ -1,4 +1,4 @@
-#include "redis_proxy/fd_notifier.h"
+#include "util/fd_notifier.h"
 
 #include <cerrno>
 #include <cstring>

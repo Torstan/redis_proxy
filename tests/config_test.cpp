@@ -1,5 +1,5 @@
 #include "redis_proxy/config.h"
-#include "redis_proxy/endpoint.h"
+#include "util/endpoint.h"
 #include "test_common.h"
 
 #include <cstdio>
