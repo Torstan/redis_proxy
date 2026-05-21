@@ -13,6 +13,13 @@ include(cmake/Jemalloc.cmake)
 
 add_subdirectory(thirdparty/libco EXCLUDE_FROM_ALL)
 
+# Add util library
+file(GLOB REDIS_PROXY_UTIL_SRCS CONFIGURE_DEPENDS util/*.cpp)
+add_library(redis_proxy_util ${REDIS_PROXY_UTIL_SRCS})
+target_include_directories(redis_proxy_util PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 if(REDIS_PROXY_BUILD_TESTS)
   set(REDIS_PROXY_LIBCO_TEST_TARGETS
     test_co_routine
@@ -40,7 +47,7 @@ add_library(redis_proxy_core ${REDIS_PROXY_CORE_SRCS})
 target_include_directories(redis_proxy_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/libco)
-target_link_libraries(redis_proxy_core PUBLIC colib_static redis_resp pthread)
+target_link_libraries(redis_proxy_core PUBLIC redis_proxy_util colib_static redis_resp pthread)
 if(NOT APPLE)
   target_link_libraries(redis_proxy_core PUBLIC dl)
 endif()
