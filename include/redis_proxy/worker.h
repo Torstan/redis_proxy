@@ -7,10 +7,12 @@
 #include <thread>
 #include <vector>
 
+#include "conn_util/fd_notifier.h"
 #include "redis_proxy/client_session.h"
-#include "redis_proxy/fd_notifier.h"
 
 namespace redis_proxy {
+
+using FdNotifier = conn_util::FdNotifier;
 
 class Worker {
 public:
