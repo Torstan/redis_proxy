@@ -1,4 +1,5 @@
-#include "redis_proxy/endpoint.h"
+#include "conn_util/endpoint.h"
+#include "redis_proxy/co_socket.h"
 
 #include <stdexcept>
 #include <string>
