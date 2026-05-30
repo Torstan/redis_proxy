@@ -1,14 +1,13 @@
 #include "conn_util/endpoint.h"
-#include "redis_proxy/co_socket.h"
 
 #include <stdexcept>
 #include <string>
 
-namespace redis_proxy {
+namespace {
 
 void test_endpoint_parse_valid() {
-  Endpoint ep;
-  if (!Endpoint::parse("127.0.0.1:6379", &ep)) {
+  conn_util::Endpoint ep;
+  if (!conn_util::Endpoint::parse("127.0.0.1:6379", &ep)) {
     throw std::runtime_error("Failed to parse valid endpoint");
   }
   if (ep.host() != "127.0.0.1" || ep.port() != 6379) {
@@ -17,32 +16,32 @@ void test_endpoint_parse_valid() {
 }
 
 void test_endpoint_parse_invalid() {
-  Endpoint ep;
-  if (Endpoint::parse("invalid", &ep)) {
+  conn_util::Endpoint ep;
+  if (conn_util::Endpoint::parse("invalid", &ep)) {
     throw std::runtime_error("Should fail to parse invalid endpoint");
   }
-  if (Endpoint::parse(":6379", &ep)) {
+  if (conn_util::Endpoint::parse(":6379", &ep)) {
     throw std::runtime_error("Should fail with missing host");
   }
-  if (Endpoint::parse("host:", &ep)) {
+  if (conn_util::Endpoint::parse("host:", &ep)) {
     throw std::runtime_error("Should fail with missing port");
   }
 }
 
 void test_endpoint_to_string() {
-  Endpoint ep("192.168.1.1", 8080);
+  conn_util::Endpoint ep("192.168.1.1", 8080);
   if (ep.toString() != "192.168.1.1:8080") {
     throw std::runtime_error("toString() returned wrong value");
   }
 }
 
-}  // namespace redis_proxy
+}  // namespace
 
 int main() {
   try {
-    redis_proxy::test_endpoint_parse_valid();
-    redis_proxy::test_endpoint_parse_invalid();
-    redis_proxy::test_endpoint_to_string();
+    test_endpoint_parse_valid();
+    test_endpoint_parse_invalid();
+    test_endpoint_to_string();
   } catch (const std::exception& e) {
     return 1;
   }
