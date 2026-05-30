@@ -1,10 +1,12 @@
 #pragma once
 
+#include "conn_util/endpoint.h"
 #include "redis_proxy/buffer.h"
-#include "redis_proxy/endpoint.h"
 #include "redis_proxy/status.h"
 
 namespace redis_proxy {
+
+using Endpoint = conn_util::Endpoint;
 
 class CoSocket {
 public:
