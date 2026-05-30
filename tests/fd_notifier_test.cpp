@@ -1,12 +1,13 @@
-#include "redis_proxy/fd_notifier.h"
+#include "conn_util/fd_notifier.h"
+#include "conn_util/status.h"
 
 #include <poll.h>
 #include <stdexcept>
 
-namespace redis_proxy {
+namespace {
 
 void test_fd_notifier_creation() {
-  FdNotifier notifier;
+  conn_util::FdNotifier notifier;
   if (!notifier.valid()) {
     throw std::runtime_error("FdNotifier should be valid after construction");
   }
@@ -16,17 +17,16 @@ void test_fd_notifier_creation() {
 }
 
 void test_fd_notifier_notify_drain() {
-  FdNotifier notifier;
+  conn_util::FdNotifier notifier;
   if (!notifier.valid()) {
     throw std::runtime_error("FdNotifier not valid");
   }
 
-  Status status = notifier.notify();
+  conn_util::Status status = notifier.notify();
   if (!status.ok()) {
     throw std::runtime_error("notify failed");
   }
 
-  // Check that readFd is readable
   pollfd pfd;
   pfd.fd = notifier.readFd();
   pfd.events = POLLIN;
@@ -40,19 +40,18 @@ void test_fd_notifier_notify_drain() {
     throw std::runtime_error("drain failed");
   }
 
-  // Check that readFd is no longer readable
   result = poll(&pfd, 1, 100);
   if (result > 0 && (pfd.revents & POLLIN)) {
     throw std::runtime_error("readFd should not be readable after drain");
   }
 }
 
-}  // namespace redis_proxy
+}  // namespace
 
 int main() {
   try {
-    redis_proxy::test_fd_notifier_creation();
-    redis_proxy::test_fd_notifier_notify_drain();
+    test_fd_notifier_creation();
+    test_fd_notifier_notify_drain();
   } catch (const std::exception& e) {
     return 1;
   }
