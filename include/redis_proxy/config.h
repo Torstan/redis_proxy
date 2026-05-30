@@ -3,9 +3,11 @@
 #include <cstddef>
 #include <string>
 
-#include "redis_proxy/endpoint.h"
+#include "conn_util/endpoint.h"
 
 namespace redis_proxy {
+
+using Endpoint = conn_util::Endpoint;
 
 struct Config {
   Endpoint listen = Endpoint("127.0.0.1", 6379);
