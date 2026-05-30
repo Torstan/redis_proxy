@@ -1,4 +1,4 @@
-#include "util/fd_notifier.h"
+#include "redis_proxy/fd_notifier.h"
 
 #include <poll.h>
 #include <stdexcept>

@@ -1,7 +1,7 @@
 #include "redis_proxy/backend_channel.h"
 
 #include "co_routine.h"
-#include "util/socket_utils.h"
+#include "conn_util/socket_utils.h"
 
 #include <utility>
 
@@ -80,7 +80,7 @@ std::size_t BackendChannel::queuedCommandCount() const {
 bool BackendChannel::isHealthy() const { return healthy_; }
 
 Status BackendChannel::connectOnce() {
-  int fd = CreateTcpClientSocket();
+  int fd = conn_util::CreateTcpClientSocket();
   if (fd < 0) {
     return Status::IoError("socket failed");
   }

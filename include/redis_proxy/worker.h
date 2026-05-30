@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "redis_proxy/client_session.h"
-#include "util/fd_notifier.h"
+#include "redis_proxy/fd_notifier.h"
 
 namespace redis_proxy {
 

@@ -1,4 +1,4 @@
-#include "util/socket_utils.h"
+#include "conn_util/socket_utils.h"
 
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -13,7 +13,7 @@ void test_set_non_blocking() {
     throw std::runtime_error("socket creation failed");
   }
 
-  int result = SetNonBlocking(fd);
+  int result = conn_util::SetNonBlocking(fd);
   if (result != 0) {
     close(fd);
     throw std::runtime_error("SetNonBlocking returned error");
@@ -33,7 +33,7 @@ void test_set_tcp_no_delay() {
     throw std::runtime_error("socket creation failed");
   }
 
-  int result = SetTcpNoDelay(fd);
+  int result = conn_util::SetTcpNoDelay(fd);
   close(fd);
 
   if (result != 0) {

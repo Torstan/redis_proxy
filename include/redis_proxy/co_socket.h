@@ -1,7 +1,7 @@
 #pragma once
 
 #include "redis_proxy/buffer.h"
-#include "util/endpoint.h"
+#include "redis_proxy/endpoint.h"
 #include "redis_proxy/status.h"
 
 namespace redis_proxy {

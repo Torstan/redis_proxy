@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <string>
 
-#include "util/endpoint.h"
+#include "redis_proxy/endpoint.h"
 
 namespace redis_proxy {
 

@@ -23,8 +23,11 @@ update-libco:
 	git submodule update --remote thirdparty/libco
 
 update-cpp_util:
-	@echo "Updating cpp_util..."
-	git submodule update --remote thirdparty/cpp_util
+	@echo "Updating cpp_util to main..."
+	git submodule sync -- thirdparty/cpp_util
+	git -C thirdparty/cpp_util fetch origin main
+	git -C thirdparty/cpp_util checkout main
+	git -C thirdparty/cpp_util pull --ff-only origin main
 
 # 清理 submodules（取消初始化）
 clean:
@@ -43,7 +46,7 @@ help:
 	@echo "  make update         - Update all submodules to latest version"
 	@echo "  make update-jemalloc - Update jemalloc only"
 	@echo "  make update-libco   - Update libco only"
-	@echo "  make update-cpp_util - Update cpp_util only"
+	@echo "  make update-cpp_util - Update cpp_util to main"
 	@echo "  make status         - Show submodule status"
 	@echo "  make clean          - Deinitialize all submodules"
 	@echo "  make help           - Show this help message"

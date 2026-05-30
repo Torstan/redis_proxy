@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(redis_proxy LANGUAGES C CXX ASM)
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -13,12 +15,14 @@ include(cmake/Jemalloc.cmake)
 
 add_subdirectory(thirdparty/libco EXCLUDE_FROM_ALL)
 
-# Add util library
-file(GLOB REDIS_PROXY_UTIL_SRCS CONFIGURE_DEPENDS util/*.cpp)
-add_library(redis_proxy_util ${REDIS_PROXY_UTIL_SRCS})
-target_include_directories(redis_proxy_util PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(CPP_UTIL_CONN_UTIL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cpp_util/conn_util)
+add_library(cpp_util_conn_util STATIC
+  ${CPP_UTIL_CONN_UTIL_DIR}/src/endpoint.cpp
+  ${CPP_UTIL_CONN_UTIL_DIR}/src/fd_notifier.cpp
+  ${CPP_UTIL_CONN_UTIL_DIR}/src/socket_utils.cpp)
+target_include_directories(cpp_util_conn_util PUBLIC
+  ${CPP_UTIL_CONN_UTIL_DIR}/include)
+target_compile_features(cpp_util_conn_util PUBLIC cxx_std_17)
 
 if(REDIS_PROXY_BUILD_TESTS)
   set(REDIS_PROXY_LIBCO_TEST_TARGETS
@@ -47,7 +51,7 @@ add_library(redis_proxy_core ${REDIS_PROXY_CORE_SRCS})
 target_include_directories(redis_proxy_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/libco)
-target_link_libraries(redis_proxy_core PUBLIC redis_proxy_util colib_static redis_resp pthread)
+target_link_libraries(redis_proxy_core PUBLIC cpp_util_conn_util colib_static redis_resp pthread)
 if(NOT APPLE)
   target_link_libraries(redis_proxy_core PUBLIC dl)
 endif()

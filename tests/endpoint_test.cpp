@@ -1,4 +1,4 @@
-#include "util/endpoint.h"
+#include "redis_proxy/endpoint.h"
 
 #include <stdexcept>
 #include <string>

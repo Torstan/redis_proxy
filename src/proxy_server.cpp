@@ -1,8 +1,8 @@
 #include "redis_proxy/proxy_server.h"
 
 #include "co_routine.h"
+#include "conn_util/socket_utils.h"
 #include "thread_worker.h"
-#include "util/socket_utils.h"
 
 #include <csignal>
 #include <iostream>
@@ -17,7 +17,7 @@ ProxyServer::ProxyServer(Config config)
 
 int ProxyServer::run() {
   std::signal(SIGPIPE, SIG_IGN);
-  listen_fd_ = CreateTcpListenSocket(config_.listen, 1024);
+  listen_fd_ = conn_util::CreateTcpListenSocket(config_.listen, 1024);
   if (listen_fd_ < 0) {
     std::cerr << "failed to listen on " << config_.listen.toString() << "\n";
     return 1;
@@ -46,8 +46,8 @@ void ProxyServer::acceptLoop() {
       co::co_poll(&pfd, 1, 1000);
       continue;
     }
-    SetNonBlocking(fd);
-    SetTcpNoDelay(fd);
+    conn_util::SetNonBlocking(fd);
+    conn_util::SetTcpNoDelay(fd);
     workers_[next_worker]->dispatchFd(fd);
     next_worker = (next_worker + 1) % workers_.size();
   }
