@@ -54,6 +54,36 @@ int main() {
     exercise(false, true);
     for (int i = 0; i < 32; ++i) exercise(false, true);
 
+    // A rejected command must leave the connection usable, with replies in
+    // request order even when valid commands are pipelined around it.
+    int recovery_fds[2];
+    RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, recovery_fds) == 0);
+    conn_util::SetNonBlocking(recovery_fds[0]);
+    conn_util::SetNonBlocking(recovery_fds[1]);
+    Config recovery_config = cfg;
+    recovery_config.max_request_bytes = 128;
+    bool recovery_finished = false;
+    auto recovery = std::make_unique<ClientSession>(
+        recovery_fds[0], recovery_config, &rules, &backends, &pool);
+    recovery->start([&](ClientSession*) { recovery_finished = true; });
+    CoSocket recovery_client(recovery_fds[1]);
+    IoBuffer recovery_input(&pool);
+    const std::string rejected =
+        "*2\r\n$10\r\nSMISMEMBER\r\n$1\r\ns\r\n";
+    RP_REQUIRE(recovery_client.writeAll(
+        MakeBufferChain(&pool, ping + rejected + ping), 2000).ok());
+    RequireEqual(ReadBytes(&backend, &backend_input, ping.size()), ping);
+    RP_REQUIRE(backend.writeAll(MakeBufferChain(&pool, "+PONG\r\n"), 2000).ok());
+    RequireEqual(ReadBytes(&backend, &backend_input, ping.size()), ping);
+    RP_REQUIRE(backend.writeAll(MakeBufferChain(&pool, "+PONG\r\n"), 2000).ok());
+    const std::string expected_replies =
+        "+PONG\r\n-ERR wrong number of arguments\r\n+PONG\r\n";
+    RequireEqual(ReadBytes(&recovery_client, &recovery_input,
+                           expected_replies.size()), expected_replies);
+    recovery_client.close();
+    WaitUntil([&] { return recovery_finished; });
+    recovery.reset();
+
     // An oversized single request is rejected without sending it downstream.
     int fds[2];
     RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);

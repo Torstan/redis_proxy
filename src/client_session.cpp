@@ -49,6 +49,7 @@ void ClientSession::readerLoop() {
   while (state_ == State::kOpen) {
     std::size_t parsed = 0;
     std::size_t consumed = 0;
+    std::size_t rejected_bytes = 0;
     std::string error;
     ParseStatus ps = ParseStatus::kNeedMore;
     while (parsed < config_.max_pipeline_commands_per_read) {
@@ -63,6 +64,7 @@ void ClientSession::readerLoop() {
       Status valid = rules_->validate(info.command_name, info.argc);
       if (!valid.ok()) {
         error = valid.message();
+        rejected_bytes = info.consumed;
         break;
       }
       consumed += info.consumed;
@@ -73,8 +75,20 @@ void ClientSession::readerLoop() {
       break;
     }
     if (!error.empty()) {
-      drain(error);
-      break;
+      if (rejected_bytes == 0) {
+        drain(error);
+        break;
+      }
+      client_in_.consume(rejected_bytes);
+      while (state_ == State::kOpen && pending_replies_ != 0) {
+        reply_signal_.wait();
+      }
+      if (state_ != State::kOpen) break;
+      std::string encoded;
+      redis::PackError(error, &encoded);
+      client_out_.push_back(MakeBufferChain(pool_, encoded));
+      output_signal_.notify();
+      continue;
     }
     if (ps == ParseStatus::kOk && client_in_.readableBytes() != 0) {
       // The parsing budget is a scheduling boundary, not a demand for new I/O.
@@ -125,7 +139,10 @@ void ClientSession::writerLoop() {
 
 void ClientSession::onBackendReply(BufferChain reply) {
   --pending_replies_;
-  if (pending_replies_ == 0) current_backend_ = nullptr;
+  if (pending_replies_ == 0) {
+    current_backend_ = nullptr;
+    reply_signal_.notify();
+  }
   client_out_.push_back(std::move(reply));
   output_signal_.notify();
 }
@@ -149,6 +166,7 @@ void ClientSession::abort() {
   client_out_.clear();
   socket_.shutdown();
   output_signal_.notify();
+  reply_signal_.notify();
 }
 
 }  // namespace redis_proxy

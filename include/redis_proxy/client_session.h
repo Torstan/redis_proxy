@@ -38,6 +38,7 @@ private:
   IoBuffer client_in_;
   std::deque<BufferChain> client_out_;
   CoroutineSignal output_signal_;
+  CoroutineSignal reply_signal_;
   BackendChannel* current_backend_ = nullptr;
   std::size_t pending_replies_ = 0;
   State state_ = State::kOpen;
