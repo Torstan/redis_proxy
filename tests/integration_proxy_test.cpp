@@ -23,19 +23,35 @@ bool HasRedisServer() {
   return std::system("command -v redis-server >/dev/null 2>&1") == 0;
 }
 
-int Connect(int port) {
+int ReservePort(int* port) {
   int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  RP_REQUIRE(fd >= 0);
+  sockaddr_in addr{};
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  RP_REQUIRE(bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0);
+  socklen_t len = sizeof(addr);
+  RP_REQUIRE(getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &len) == 0);
+  *port = ntohs(addr.sin_port);
+  return fd;
+}
+
+int Connect(int port) {
   sockaddr_in addr{};
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
   inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
   for (int i = 0; i < 50; ++i) {
+    int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd < 0) {
+      return -1;
+    }
     if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
       return fd;
     }
+    close(fd);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  close(fd);
   return -1;
 }
 
@@ -110,21 +126,42 @@ int main() {
     return 0;
   }
 
-  const int redis_port = 6380;
-  const int proxy_port = 6390;
+  int redis_port = 0;
+  int proxy_port = 0;
+  int redis_reservation = ReservePort(&redis_port);
+  int proxy_reservation = ReservePort(&proxy_port);
+  const std::string redis_port_arg = std::to_string(redis_port);
+  const std::string redis_endpoint = "127.0.0.1:" + redis_port_arg;
+  const std::string proxy_endpoint = "127.0.0.1:" + std::to_string(proxy_port);
+  close(redis_reservation);
   pid_t redis_pid = fork();
+  RP_REQUIRE(redis_pid >= 0);
   if (redis_pid == 0) {
-    execlp("redis-server", "redis-server", "--port", "6380", "--save", "",
-           "--appendonly", "no", nullptr);
+    close(proxy_reservation);
+    execlp("redis-server", "redis-server", "--bind", "127.0.0.1", "--port",
+           redis_port_arg.c_str(), "--save", "", "--appendonly", "no", nullptr);
     _exit(127);
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  int redis_fd = Connect(redis_port);
+  if (redis_fd < 0) {
+    kill(redis_pid, SIGTERM);
+    waitpid(redis_pid, nullptr, 0);
+    close(proxy_reservation);
+    RP_REQUIRE(redis_fd >= 0);
+  }
+  close(redis_fd);
 
+  close(proxy_reservation);
   pid_t proxy_pid = fork();
+  if (proxy_pid < 0) {
+    kill(redis_pid, SIGTERM);
+    waitpid(redis_pid, nullptr, 0);
+    RP_REQUIRE(proxy_pid >= 0);
+  }
   if (proxy_pid == 0) {
-    execl("./redis_proxy", "./redis_proxy", "--listen", "127.0.0.1:6390",
-          "--redis", "127.0.0.1:6380", "--workers", "1", "--backend-conns",
-          "2", nullptr);
+    execl("./redis_proxy", "./redis_proxy", "--listen", proxy_endpoint.c_str(),
+          "--redis", redis_endpoint.c_str(), "--workers", "1",
+          "--backend-conns", "2", nullptr);
     _exit(127);
   }
 

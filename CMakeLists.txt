@@ -29,7 +29,10 @@ if(REDIS_PROXY_BUILD_TESTS)
     test_co_routine
     test_co_async
     test_co_poll
-    test_public_api)
+    test_public_api
+    test_runtime_boundaries
+    test_io_backend
+    test_connect)
   foreach(libco_test ${REDIS_PROXY_LIBCO_TEST_TARGETS})
     if(TARGET ${libco_test})
       list(APPEND REDIS_PROXY_PRESENT_LIBCO_TEST_TARGETS ${libco_test})
