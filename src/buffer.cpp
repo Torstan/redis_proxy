@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 namespace redis_proxy {
 
@@ -109,6 +110,17 @@ std::size_t BufferSlice::size() const { return length_; }
 
 bool BufferSlice::empty() const { return length_ == 0; }
 
+BufferChain::BufferChain(BufferChain&& other) noexcept
+    : slices_(std::move(other.slices_)), total_(std::exchange(other.total_, 0)) {}
+
+BufferChain& BufferChain::operator=(BufferChain&& other) noexcept {
+  if (this != &other) {
+    slices_ = std::move(other.slices_);
+    total_ = std::exchange(other.total_, 0);
+  }
+  return *this;
+}
+
 void BufferChain::append(BufferSlice slice) {
   total_ += slice.size();
   slices_.push_back(std::move(slice));
@@ -160,6 +172,16 @@ std::size_t BlockPool::freeCountForTest() const { return free_.size(); }
 
 IoBuffer::IoBuffer(BlockPool* pool) : pool_(pool) {}
 
+IoBuffer::~IoBuffer() { clear(); }
+
+void IoBuffer::clear() {
+  for (auto* block : blocks_) block->release();
+  blocks_.clear();
+  readable_bytes_ = 0;
+  linearized_.clear();
+  linearized_offset_ = 0;
+}
+
 char* IoBuffer::reserveWritable(std::size_t* writable) {
   if (blocks_.empty() || blocks_.back()->writableBytes() == 0) {
     blocks_.push_back(pool_->acquire());
@@ -168,9 +190,14 @@ char* IoBuffer::reserveWritable(std::size_t* writable) {
   return blocks_.back()->writePtr();
 }
 
-void IoBuffer::commitWrite(std::size_t n) { blocks_.back()->advanceEnd(n); }
+void IoBuffer::commitWrite(std::size_t n) {
+  blocks_.back()->advanceEnd(n);
+  readable_bytes_ += n;
+  linearized_.clear();
+  linearized_offset_ = 0;
+}
 
-void IoBuffer::appendForTest(std::string_view data) {
+void IoBuffer::append(std::string_view data) {
   while (!data.empty()) {
     std::size_t writable = 0;
     char* dst = reserveWritable(&writable);
@@ -182,14 +209,13 @@ void IoBuffer::appendForTest(std::string_view data) {
 }
 
 std::size_t IoBuffer::readableBytes() const {
-  std::size_t total = 0;
-  for (auto* block : blocks_) {
-    total += block->size();
-  }
-  return total;
+  return readable_bytes_;
 }
 
 void IoBuffer::consume(std::size_t n) {
+  n = std::min(n, readable_bytes_);
+  readable_bytes_ -= n;
+  if (!linearized_.empty()) linearized_offset_ += n;
   while (n > 0 && !blocks_.empty()) {
     BufferBlock* block = blocks_.front();
     const std::size_t take = std::min(n, block->size());
@@ -202,46 +228,25 @@ void IoBuffer::consume(std::size_t n) {
   }
 }
 
-bool IoBuffer::ensureContiguousPrefix(std::size_t n) {
-  if (n == 0) {
-    return true;
-  }
-  if (blocks_.empty() || readableBytes() < n) {
-    return false;
-  }
-  if (blocks_.front()->size() >= n) {
-    return true;
-  }
-  linearized_.clear();
-  linearized_.reserve(n);
-  std::size_t remaining = n;
-  for (auto* block : blocks_) {
-    const std::size_t take = std::min(remaining, block->size());
-    linearized_.append(block->data() + block->begin(), take);
-    remaining -= take;
-    if (remaining == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-std::string_view IoBuffer::contiguousPrefixForTest(std::size_t n) {
-  if (!ensureContiguousPrefix(n)) {
-    return {};
-  }
-  if (n == 0) {
-    return {};
-  }
-  if (blocks_.front()->size() >= n) {
+std::string_view IoBuffer::readableView() {
+  if (readable_bytes_ == 0) return {};
+  if (blocks_.front()->size() == readable_bytes_) {
     return std::string_view(blocks_.front()->data() + blocks_.front()->begin(),
-                            n);
+                            readable_bytes_);
   }
-  return std::string_view(linearized_.data(), linearized_.size());
+  if (linearized_.empty()) {
+    linearized_.reserve(readable_bytes_);
+    for (auto* block : blocks_) {
+      linearized_.append(block->data() + block->begin(), block->size());
+    }
+    linearized_offset_ = 0;
+  }
+  return std::string_view(linearized_).substr(linearized_offset_);
 }
 
 BufferChain IoBuffer::slicePrefix(std::size_t n) {
   BufferChain chain;
+  if (n == 0) return chain;
   std::size_t remaining = n;
   for (auto* block : blocks_) {
     const std::size_t take = std::min(remaining, block->size());
@@ -256,13 +261,9 @@ BufferChain IoBuffer::slicePrefix(std::size_t n) {
 }
 
 BufferChain MakeBufferChain(BlockPool* pool, std::string_view bytes) {
-  BufferBlock* block = pool->acquire();
-  std::memcpy(block->writePtr(), bytes.data(), bytes.size());
-  block->advanceEnd(bytes.size());
-  BufferChain chain;
-  chain.append(BufferSlice::retain(block, block->begin(), block->size()));
-  block->release();
-  return chain;
+  IoBuffer input(pool);
+  input.append(bytes);
+  return input.slicePrefix(bytes.size());
 }
 
 }  // namespace redis_proxy

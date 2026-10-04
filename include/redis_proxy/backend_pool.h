@@ -10,21 +10,19 @@ namespace redis_proxy {
 
 class BackendPool {
 public:
-  BackendPool(int worker_id, const Config& config, BlockPool* pool);
+  BackendPool(const Config& config, BlockPool* pool);
 
   void start();
+  void stop();
+  bool isStopped() const;
+  void detachOwner(ReplySink* owner);
   BackendChannel* submit(ReplySink* owner, BackendChannel* current,
-                         bool has_pending, BufferChain bytes,
-                         uint32_t command_count, uint64_t sequence_base);
-  BackendChannel* selectForSessionForTest(ReplySink* owner, bool has_pending,
-                                          BackendChannel* current);
+                         BufferChain bytes, uint32_t command_count);
   BackendChannel* channelForTest(std::size_t index);
 
 private:
-  BackendChannel* select(ReplySink* owner, bool has_pending,
-                         BackendChannel* current);
+  BackendChannel* select(BackendChannel* current);
 
-  int worker_id_;
   Config config_;
   BlockPool* pool_;
   std::vector<std::unique_ptr<BackendChannel>> channels_;

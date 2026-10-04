@@ -48,7 +48,7 @@ int main() {
     while (input.readableBytes() < 11) {
       RP_REQUIRE(sock.readSome(&input, 1000).ok());
     }
-    RequireEqual(input.contiguousPrefixForTest(11), "hello world");
+    RequireEqual(input.readableView(), "hello world");
     sock.close();
     done = true;
   });

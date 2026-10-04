@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <sstream>
 
 namespace redis_proxy {
 
@@ -189,26 +188,6 @@ Status CommandRules::validate(std::string_view command,
     return Status::ProtocolError("ERR wrong number of arguments");
   }
   return Status::Ok();
-}
-
-bool CommandRules::loadRuleLine(std::string_view line) {
-  std::istringstream in{std::string(line)};
-  std::string command;
-  int allowed = 0;
-  int min_argc = 0;
-  int max_argc = 0;
-  int read = 0;
-  int write = 0;
-  int dangerous = 0;
-  if (!(in >> command >> allowed >> min_argc >> max_argc >> read >> write >>
-        dangerous)) {
-    return false;
-  }
-  rules_[normalize(command)] =
-      CommandRule{allowed != 0, static_cast<uint16_t>(min_argc),
-                  static_cast<uint16_t>(max_argc), read != 0, write != 0,
-                  dangerous != 0};
-  return true;
 }
 
 void CommandRules::setRuleForTest(std::string_view command,

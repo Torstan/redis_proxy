@@ -151,6 +151,14 @@ int main() {
   }
   close(redis_fd);
 
+  char config_path[] = "integration_proxy_test.XXXXXX";
+  int config_fd = mkstemp(config_path);
+  RP_REQUIRE(config_fd >= 0);
+  const std::string config = "max_pipeline_commands_per_read=1\n";
+  RP_REQUIRE(write(config_fd, config.data(), config.size()) ==
+             static_cast<ssize_t>(config.size()));
+  close(config_fd);
+
   close(proxy_reservation);
   pid_t proxy_pid = fork();
   if (proxy_pid < 0) {
@@ -161,7 +169,7 @@ int main() {
   if (proxy_pid == 0) {
     execl("./redis_proxy", "./redis_proxy", "--listen", proxy_endpoint.c_str(),
           "--redis", redis_endpoint.c_str(), "--workers", "1",
-          "--backend-conns", "2", nullptr);
+          "--backend-conns", "2", "--config", config_path, nullptr);
     _exit(127);
   }
 
@@ -202,6 +210,7 @@ int main() {
   kill(redis_pid, SIGTERM);
   waitpid(proxy_pid, nullptr, 0);
   waitpid(redis_pid, nullptr, 0);
+  unlink(config_path);
 
   if (!ok) {
     std::cerr << "unexpected integration reply: [" << reply << "]\n";

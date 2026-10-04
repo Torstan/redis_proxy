@@ -2,6 +2,7 @@
 
 #include "co_routine.h"
 #include "thread_worker.h"
+#include "task.h"
 
 #include <memory>
 #include <poll.h>
@@ -13,7 +14,7 @@ Worker::Worker(int id, const Config& config, CommandRules* rules)
       config_(config),
       rules_(rules),
       pool_(std::make_unique<BlockPool>(32 * 1024)),
-      backend_pool_(std::make_unique<BackendPool>(id, config, pool_.get())) {}
+      backend_pool_(std::make_unique<BackendPool>(config, pool_.get())) {}
 
 Worker::~Worker() = default;
 
@@ -50,28 +51,37 @@ void Worker::reapFds() {
     int fd = fds.front();
     fds.pop_front();
     auto session = std::make_unique<ClientSession>(
-        next_session_id_++, fd, config_, rules_, backend_pool_.get(),
+        fd, config_, rules_, backend_pool_.get(),
         pool_.get());
-    session->start();
-    sessions_.push_back(std::move(session));
+    auto* ptr = session.get();
+    sessions_.emplace(ptr, std::move(session));
+    ptr->start([this](ClientSession* finished) {
+      finished_sessions_.push_back(finished);
+      (void)fd_notifier_.notify();
+    });
   }
+}
+
+void Worker::reapSessions() {
+  for (auto* session : finished_sessions_) sessions_.erase(session);
+  finished_sessions_.clear();
 }
 
 void Worker::run() {
   co::co_enable_hook_sys();
   backend_pool_->start();
-  co::Coroutine* reaper = co::co_create([this]() {
+  co::schedule(co::make_task([this]() {
     co::co_enable_hook_sys();
     while (true) {
       reapFds();
+      reapSessions();
       pollfd pfd{fd_notifier_.readFd(), POLLIN | POLLERR | POLLHUP, 0};
       const int ret = co::co_poll(&pfd, 1, -1);
       if (ret > 0) {
         (void)fd_notifier_.drain();
       }
     }
-  });
-  co::co_resume(reaper);
+  }));
   co::ThreadWorker loop(id_);
   loop.run_loop();
 }

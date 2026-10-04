@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "conn_util/fd_notifier.h"
@@ -35,11 +36,13 @@ private:
   FdNotifier fd_notifier_;
   std::unique_ptr<BlockPool> pool_;
   std::unique_ptr<BackendPool> backend_pool_;
-  std::vector<std::unique_ptr<ClientSession>> sessions_;
-  int next_session_id_ = 1;
+  std::unordered_map<ClientSession*, std::unique_ptr<ClientSession>> sessions_;
+  // Worker-thread-only completion queue; destruction happens off session stacks.
+  std::vector<ClientSession*> finished_sessions_;
 
   void run();
   void reapFds();
+  void reapSessions();
 };
 
 }  // namespace redis_proxy

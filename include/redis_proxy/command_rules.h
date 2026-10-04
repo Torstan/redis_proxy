@@ -24,7 +24,6 @@ public:
   static CommandRules Default();
 
   Status validate(std::string_view command, std::size_t argc) const;
-  bool loadRuleLine(std::string_view line);
   void setRuleForTest(std::string_view command, const CommandRule& rule);
 
 private:

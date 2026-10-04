@@ -46,6 +46,14 @@ void CoSocket::close() {
   }
 }
 
+void CoSocket::shutdown() {
+  if (fd_ >= 0) ::shutdown(fd_, SHUT_RDWR);
+}
+
+void CoSocket::shutdownRead() {
+  if (fd_ >= 0) ::shutdown(fd_, SHUT_RD);
+}
+
 Status CoSocket::connectTo(const Endpoint& endpoint, int timeout_ms) {
   sockaddr_in addr;
   if (!endpoint.toSockAddr(&addr)) {

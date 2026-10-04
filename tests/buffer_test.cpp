@@ -29,13 +29,13 @@ int main() {
   RP_REQUIRE(pool.freeCountForTest() == 1);
 
   redis_proxy::IoBuffer input(&pool);
-  input.appendForTest("abc");
-  input.appendForTest("def");
+  input.append("abc");
+  input.append("def");
   RP_REQUIRE(input.readableBytes() == 6);
-  RequireEqual(input.contiguousPrefixForTest(6), "abcdef");
+  RequireEqual(input.readableView(), "abcdef");
   input.consume(4);
   RP_REQUIRE(input.readableBytes() == 2);
-  RequireEqual(input.contiguousPrefixForTest(2), "ef");
+  RequireEqual(input.readableView(), "ef");
 
   redis_proxy::BufferChain left =
       redis_proxy::MakeBufferChain(&pool, "+PONG\r\n");
@@ -43,6 +43,40 @@ int main() {
   left.appendChain(std::move(right));
   RequireEqual(left.toStringForTest(), "+PONG\r\n:1\r\n");
   RP_REQUIRE(right.empty());
+
+  {
+    redis_proxy::BlockPool recycled(16);
+    redis_proxy::BufferChain retained;
+    {
+      redis_proxy::IoBuffer abandoned(&recycled);
+      abandoned.append(std::string(40, 'x'));
+      retained = abandoned.slicePrefix(8);
+    }
+    RP_REQUIRE(recycled.freeCountForTest() == 2);
+    RequireEqual(retained.toStringForTest(), std::string(8, 'x'));
+    retained = {};
+    RP_REQUIRE(recycled.freeCountForTest() == 3);
+
+    auto large = redis_proxy::MakeBufferChain(&recycled, std::string(100, 'y'));
+    RequireEqual(large.toStringForTest(), std::string(100, 'y'));
+    auto moved = std::move(large);
+    RP_REQUIRE(large.empty());
+    RP_REQUIRE(moved.size() == 100);
+    RP_REQUIRE(redis_proxy::MakeBufferChain(&recycled, "").empty());
+  }
+
+  redis_proxy::IoBuffer cached(&pool);
+  cached.append("abcdefghijklmnopqrstuvwxyz0123456789");
+  RequireEqual(cached.readableView(), "abcdefghijklmnopqrstuvwxyz0123456789");
+  cached.consume(5);
+  RequireEqual(cached.readableView(), "fghijklmnopqrstuvwxyz0123456789");
+  auto prefix = cached.slicePrefix(15);
+  RequireEqual(prefix.toStringForTest(), "fghijklmnopqrst");
+  cached.append("ABC");
+  RequireEqual(cached.readableView(), "uvwxyz0123456789ABC");
+  cached.clear();
+  RequireEqual(prefix.toStringForTest(), "fghijklmnopqrst");
+  RP_REQUIRE(cached.readableView().empty());
 
   std::cout << "buffer_test passed\n";
   return 0;

@@ -68,6 +68,11 @@ private:
 
 class BufferChain {
 public:
+  BufferChain() = default;
+  BufferChain(const BufferChain&) = default;
+  BufferChain& operator=(const BufferChain&) = default;
+  BufferChain(BufferChain&& other) noexcept;
+  BufferChain& operator=(BufferChain&& other) noexcept;
   void append(BufferSlice slice);
   void appendChain(BufferChain&& chain);
   std::size_t size() const;
@@ -96,19 +101,26 @@ private:
 class IoBuffer {
 public:
   explicit IoBuffer(BlockPool* pool);
+  ~IoBuffer();
+  IoBuffer(const IoBuffer&) = delete;
+  IoBuffer& operator=(const IoBuffer&) = delete;
+
   char* reserveWritable(std::size_t* writable);
   void commitWrite(std::size_t n);
-  void appendForTest(std::string_view data);
+  void append(std::string_view data);
   std::size_t readableBytes() const;
+  void clear();
   void consume(std::size_t n);
-  std::string_view contiguousPrefixForTest(std::size_t n);
-  bool ensureContiguousPrefix(std::size_t n);
+  // Valid until the next mutation. Repeated reads/consumes reuse linearization.
+  std::string_view readableView();
   BufferChain slicePrefix(std::size_t n);
 
 private:
   BlockPool* pool_;
   std::deque<BufferBlock*> blocks_;
+  std::size_t readable_bytes_ = 0;
   std::string linearized_;
+  std::size_t linearized_offset_ = 0;
 };
 
 BufferChain MakeBufferChain(BlockPool* pool, std::string_view bytes);

@@ -1,39 +1,111 @@
-#include "redis_proxy/backend_pool.h"
 #include "redis_proxy/client_session.h"
-#include "redis_proxy/command_rules.h"
-#include "test_common.h"
+#include "runtime_test.h"
 
+#include <csignal>
 #include <iostream>
-#include <string>
-#include <sys/socket.h>
-#include <unistd.h>
+#include <memory>
 
 int main() {
-  int fds[2];
-  RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+  std::signal(SIGPIPE, SIG_IGN);
+  RunCoroutines([] {
+    using namespace redis_proxy;
+    Config cfg;
+    cfg.max_pipeline_commands_per_read = 1;
+    const std::string ping = "*1\r\n$4\r\nPING\r\n";
+    cfg.max_request_bytes = ping.size();
+    int listener = ListenForTest(&cfg.redis);
+    BlockPool pool(64);
+    CommandRules rules = CommandRules::Default();
+    BackendPool backends(cfg, &pool);
+    backends.start();
+    WaitUntil([&] { return backends.channelForTest(0)->isHealthy(); });
+    CoSocket backend(AcceptForTest(listener));
+    IoBuffer backend_input(&pool);
 
-  redis_proxy::Config cfg;
-  cfg.backend_conns_per_worker = 1;
-  redis_proxy::BlockPool pool(64);
-  redis_proxy::CommandRules rules = redis_proxy::CommandRules::Default();
-  redis_proxy::BackendPool backend_pool(0, cfg, &pool);
-  redis_proxy::ClientSession session(1, fds[0], cfg, &rules, &backend_pool,
-                                     &pool);
+    auto exercise = [&](bool invalid_suffix, bool half_close) {
+      int fds[2];
+      RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+      conn_util::SetNonBlocking(fds[0]);
+      conn_util::SetNonBlocking(fds[1]);
+      bool finished = false;
+      auto session = std::make_unique<ClientSession>(fds[0], cfg, &rules,
+                                                      &backends, &pool);
+      session->start([&](ClientSession*) { finished = true; });
+      CoSocket client(fds[1]);
+      IoBuffer client_input(&pool);
+      const std::string request = invalid_suffix ? ping + "*1\r\n$4\r\nAUTH\r\n"
+                                                : ping + ping + ping;
+      RP_REQUIRE(client.writeAll(MakeBufferChain(&pool, request), 2000).ok());
+      if (half_close) ::shutdown(client.fd(), SHUT_WR);
+      const auto expected = invalid_suffix ? ping : ping + ping + ping;
+      RequireEqual(ReadBytes(&backend, &backend_input, expected.size()), expected);
+      const std::string replies = invalid_suffix ? "+PONG\r\n" :
+                                                   "+PONG\r\n+PONG\r\n+PONG\r\n";
+      RP_REQUIRE(backend.writeAll(MakeBufferChain(&pool, replies), 2000).ok());
+      std::string expected_reply = replies;
+      if (invalid_suffix) expected_reply += "-ERR proxy rejected command\r\n";
+      RequireEqual(ReadBytes(&client, &client_input, expected_reply.size()), expected_reply);
+      client.close();
+      WaitUntil([&] { return finished; });
+      session.reset();
+    };
+    exercise(false, false);
+    exercise(true, false);
+    exercise(false, true);
+    for (int i = 0; i < 32; ++i) exercise(false, true);
 
-  session.onBackendReply(redis_proxy::MakeBufferChain(&pool, "+PONG\r\n"));
-  RP_REQUIRE(session.outputSignalPendingForTest());
+    // An oversized single request is rejected without sending it downstream.
+    int fds[2];
+    RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+    conn_util::SetNonBlocking(fds[0]);
+    conn_util::SetNonBlocking(fds[1]);
+    bool finished = false;
+    ClientSession limited(fds[0], cfg, &rules, &backends, &pool);
+    limited.start([&](ClientSession*) { finished = true; });
+    CoSocket client(fds[1]);
+    IoBuffer input(&pool);
+    RP_REQUIRE(client.writeAll(MakeBufferChain(&pool,
+        "*2\r\n$3\r\nGET\r\n$1\r\nx\r\n"), 2000).ok());
+    const std::string error = "-ERR proxy protocol error\r\n";
+    RequireEqual(ReadBytes(&client, &input, error.size()), error);
+    WaitUntil([&] { return finished; });
+    RP_REQUIRE(backends.channelForTest(0)->queuedCommandCount() == 0);
 
-  const std::string two_pings =
-      "*1\r\n$4\r\nPING\r\n*1\r\n$4\r\nPING\r\n";
-  session.submitBatchForTest(redis_proxy::MakeBufferChain(&pool, two_pings),
-                             2);
-  RP_REQUIRE(session.pendingRepliesForTest() == 2);
-  redis_proxy::BackendChannel* channel = backend_pool.channelForTest(0);
-  RP_REQUIRE(channel != nullptr);
-  RP_REQUIRE(channel->pendingBatchCountForTest() == 1);
-  RP_REQUIRE(channel->queuedCommandCount() == 2);
+    // Closing a client during a blocked output write must wake its reader too.
+    int slow_fds[2];
+    RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, slow_fds) == 0);
+    conn_util::SetNonBlocking(slow_fds[0]);
+    conn_util::SetNonBlocking(slow_fds[1]);
+    int small_buffer = 1024;
+    setsockopt(slow_fds[0], SOL_SOCKET, SO_SNDBUF, &small_buffer, sizeof(small_buffer));
+    bool slow_finished = false;
+    ClientSession slow(slow_fds[0], cfg, &rules, &backends, &pool);
+    slow.start([&](ClientSession*) { slow_finished = true; });
+    CoSocket slow_client(slow_fds[1]);
+    RP_REQUIRE(slow_client.writeAll(MakeBufferChain(&pool, ping), 2000).ok());
+    ReadBytes(&backend, &backend_input, ping.size());
+    const std::string large_reply = "$1048576\r\n" + std::string(1048576, 'x') + "\r\n";
+    RP_REQUIRE(backend.writeAll(MakeBufferChain(&pool, large_reply), 2000).ok());
+    WaitUntil([&] { return backends.channelForTest(0)->queuedCommandCount() == 0; });
+    slow_client.close();
+    WaitUntil([&] { return slow_finished; });
 
-  close(fds[1]);
+    int failed_fds[2];
+    RP_REQUIRE(socketpair(AF_UNIX, SOCK_STREAM, 0, failed_fds) == 0);
+    conn_util::SetNonBlocking(failed_fds[0]);
+    conn_util::SetNonBlocking(failed_fds[1]);
+    bool failed_finished = false;
+    ClientSession failed(failed_fds[0], cfg, &rules, &backends, &pool);
+    failed.start([&](ClientSession*) { failed_finished = true; });
+    CoSocket failed_client(failed_fds[1]);
+    RP_REQUIRE(failed_client.writeAll(MakeBufferChain(&pool, ping), 2000).ok());
+    ReadBytes(&backend, &backend_input, ping.size());
+    backend.close();
+    WaitUntil([&] { return failed_finished; });
+    RP_REQUIRE(!failed_client.readSome(&input, 2000).ok());
+    backends.stop();
+    WaitUntil([&] { return backends.isStopped(); });
+    close(listener);
+  });
   std::cout << "client_session_test passed\n";
-  return 0;
 }

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -12,18 +12,6 @@
 namespace redis_proxy {
 
 enum class ParseStatus { kOk, kNeedMore, kError, kNoMemory };
-
-struct CommandView {
-  std::string name;
-  std::vector<std::string_view> args;
-  std::size_t argc = 0;
-};
-
-struct RespFrame {
-  BufferChain bytes;
-  CommandView command;
-  std::size_t consumed = 0;
-};
 
 struct RespFrameInfo {
   std::size_t consumed = 0;
@@ -36,8 +24,9 @@ public:
   RespParser();
 
   void setLimits(std::size_t max_bulk_bytes, std::size_t max_array_elements,
-                 std::size_t max_depth);
-  ParseStatus nextFrame(IoBuffer& input, RespFrame* out);
+                 std::size_t max_depth,
+                 std::size_t max_frame_bytes =
+                     std::numeric_limits<std::size_t>::max());
   ParseStatus peekFrame(IoBuffer& input, std::size_t offset,
                         RespFrameInfo* out);
   ParseStatus nextReplyFrame(IoBuffer& input, BufferChain* out,
@@ -45,10 +34,11 @@ public:
 
 private:
   redis::RespLimits limits_;
-  std::array<redis::RespValue, 2048> scratch_;
+  std::vector<redis::RespValue> scratch_;
+  std::size_t max_frame_bytes_ = std::numeric_limits<std::size_t>::max();
 
+  redis::RespResult unpack(std::string_view input);
   ParseStatus convert(redis::RespStatus status) const;
-  bool extractCommand(const redis::RespValue& value, CommandView* out) const;
   bool extractCommandInfo(const redis::RespValue& value,
                           RespFrameInfo* out) const;
 };

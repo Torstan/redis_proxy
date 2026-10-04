@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
+#include <string>
 #include <string_view>
 
 #include "redis_proxy/backend_pool.h"
@@ -15,20 +17,18 @@ namespace redis_proxy {
 
 class ClientSession : public ReplySink {
 public:
-  ClientSession(int id, int fd, const Config& config, CommandRules* rules,
+  ClientSession(int fd, const Config& config, CommandRules* rules,
                 BackendPool* backend_pool, BlockPool* pool);
 
-  void start();
+  // Completion runs on the worker after both I/O loops exit. The callback
+  // must defer destruction until control returns to the scheduler.
+  void start(std::function<void(ClientSession*)> on_finished);
 
   void onBackendReply(BufferChain reply) override;
   void onBackendFailure(const Status& status) override;
 
-  std::size_t pendingRepliesForTest() const;
-  bool outputSignalPendingForTest() const;
-  void submitBatchForTest(BufferChain bytes, uint32_t command_count);
-
 private:
-  int id_;
+  enum class State { kOpen, kDraining, kAborted };
   CoSocket socket_;
   Config config_;
   CommandRules* rules_;
@@ -40,13 +40,17 @@ private:
   CoroutineSignal output_signal_;
   BackendChannel* current_backend_ = nullptr;
   std::size_t pending_replies_ = 0;
-  uint64_t next_sequence_ = 1;
-  bool closed_ = false;
+  State state_ = State::kOpen;
+  std::string final_error_;
+  int active_loops_ = 0;
+  std::function<void(ClientSession*)> on_finished_;
 
   void readerLoop();
   void writerLoop();
-  void enqueueErrorAndClose(std::string_view error);
-  void submitBatch(BufferChain bytes, uint32_t command_count);
+  void drain(std::string_view error = {});
+  void abort();
+  void finishLoop();
+  bool submitBatch(BufferChain bytes, uint32_t command_count);
 };
 
 }  // namespace redis_proxy

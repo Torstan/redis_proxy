@@ -22,6 +22,9 @@ public:
   int release();
   void reset(int fd);
   void close();
+  // Interrupt outstanding I/O without recycling the descriptor underneath it.
+  void shutdown();
+  void shutdownRead();
 
   Status connectTo(const Endpoint& endpoint, int timeout_ms);
   Status readSome(IoBuffer* out, int timeout_ms);
